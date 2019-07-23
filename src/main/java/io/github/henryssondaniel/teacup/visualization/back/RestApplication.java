@@ -1,5 +1,7 @@
 package io.github.henryssondaniel.teacup.visualization.back;
 
+import io.github.henryssondaniel.teacup.visualization.back.v1._0.DashboardResource;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.logging.Level;
@@ -21,6 +23,6 @@ public class RestApplication extends Application {
   public Set<Class<?>> getClasses() {
     LOGGER.log(Level.FINE, "Get classes");
 
-    return new HashSet<>(0);
+    return new HashSet<>(Collections.singletonList(DashboardResource.class));
   }
 }
