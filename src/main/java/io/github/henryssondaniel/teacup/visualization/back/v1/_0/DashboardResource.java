@@ -43,10 +43,7 @@ public class DashboardResource {
     LOGGER.log(Level.FINE, "Dashboard");
 
     var httpSession = httpServletRequest.getSession();
-    return (httpSession.getAttribute("id") == null
-            ? Response.status(Status.UNAUTHORIZED)
-            : getDashBoard(httpSession))
-        .build();
+    return Utils.userRequired(httpSession).orElseGet(() -> getDashBoard(httpSession)).build();
   }
 
   private static ResponseBuilder getDashBoard(HttpSession httpSession) {

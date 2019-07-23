@@ -1,8 +1,10 @@
 package io.github.henryssondaniel.teacup.visualization.back;
 
+import io.github.henryssondaniel.teacup.visualization.back.v1._0.AccountResource;
 import io.github.henryssondaniel.teacup.visualization.back.v1._0.DashboardResource;
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -23,6 +25,10 @@ public class RestApplication extends Application {
   public Set<Class<?>> getClasses() {
     LOGGER.log(Level.FINE, "Get classes");
 
-    return new HashSet<>(Collections.singletonList(DashboardResource.class));
+    List<Class<?>> resources = new ArrayList<>(2);
+    resources.add(AccountResource.class);
+    resources.add(DashboardResource.class);
+
+    return new HashSet<>(resources);
   }
 }
