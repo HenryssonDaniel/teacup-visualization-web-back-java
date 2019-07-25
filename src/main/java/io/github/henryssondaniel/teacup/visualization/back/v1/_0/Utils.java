@@ -11,6 +11,6 @@ enum Utils {
 
   static Optional<ResponseBuilder> userRequired(HttpSession httpSession) {
     return Optional.ofNullable(
-        httpSession.getAttribute("id") == null ? Response.status(Status.UNAUTHORIZED) : null);
+        null == httpSession.getAttribute("id") ? Response.status(Status.UNAUTHORIZED) : null);
   }
 }

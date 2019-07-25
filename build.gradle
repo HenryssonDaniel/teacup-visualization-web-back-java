@@ -59,6 +59,7 @@ configurations {
 dependencies {
     compile 'javax.ws.rs:javax.ws.rs-api:2.1.1'
     compile 'org.json:json:20180813'
+    implementation 'com.auth0:java-jwt:3.8.1'
     implementation 'io.github.henryssondaniel.teacup:core:1.1.2-SNAPSHOT'
     providedCompile 'javax.servlet:javax.servlet-api:4.0.1'
     testCompile 'org.glassfish.jersey.core:jersey-common:2.29'
