@@ -92,6 +92,21 @@ public class AccountResource {
 
     return noUserRequired(httpServletRequest.getSession()).orElseGet(Response::ok).build();
   }
+  /**
+   * Log out.
+   *
+   * @return the response
+   * @since 1.0
+   */
+  @POST
+  @Path("logOut")
+  @Produces(MediaType.APPLICATION_JSON)
+  public static Response logOut(@Context HttpServletRequest httpServletRequest) {
+    LOGGER.log(Level.FINE, "Log in");
+
+    var httpSession = httpServletRequest.getSession();
+    return Utils.userRequired(httpSession).orElseGet(() -> logOut(httpSession)).build();
+  }
 
   private ResponseBuilder changePassword(String password, String token) {
     ResponseBuilder responseBuilder;
@@ -153,6 +168,12 @@ public class AccountResource {
     if (null == jwtVerifier) jwtVerifier = JWT.require(getAlgorithm()).build();
 
     return jwtVerifier;
+  }
+
+  private static ResponseBuilder logOut(HttpSession httpSession) {
+    httpSession.removeAttribute("id");
+
+    return Response.ok();
   }
 
   private static Optional<ResponseBuilder> noUserRequired(HttpSession httpSession) {
