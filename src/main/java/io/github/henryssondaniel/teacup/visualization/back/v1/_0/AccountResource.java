@@ -69,7 +69,7 @@ public class AccountResource {
   @Produces(MediaType.APPLICATION_JSON)
   public Response changePassword(
       @Context HttpServletRequest httpServletRequest,
-      @QueryParam("limit") String password,
+      @QueryParam("password") String password,
       @QueryParam("token") String token) {
     LOGGER.log(Level.FINE, "Change password");
 
