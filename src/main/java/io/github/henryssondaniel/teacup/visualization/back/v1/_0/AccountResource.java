@@ -92,6 +92,7 @@ public class AccountResource {
 
     return noUserRequired(httpServletRequest.getSession()).orElseGet(Response::ok).build();
   }
+
   /**
    * Log out.
    *
@@ -106,6 +107,24 @@ public class AccountResource {
 
     var httpSession = httpServletRequest.getSession();
     return Utils.userRequired(httpSession).orElseGet(() -> logOut(httpSession)).build();
+  }
+
+  /**
+   * Recover.
+   *
+   * @return the response
+   * @since 1.0
+   */
+  @POST
+  @Path("recover")
+  @Produces(MediaType.APPLICATION_JSON)
+  public static Response recover(
+      @Context HttpServletRequest httpServletRequest, @QueryParam("email") String email) {
+    LOGGER.log(Level.FINE, "Log in");
+
+    return noUserRequired(httpServletRequest.getSession())
+        .orElseGet(() -> Response.status(recover(email)))
+        .build();
   }
 
   private ResponseBuilder changePassword(String password, String token) {
@@ -179,5 +198,31 @@ public class AccountResource {
   private static Optional<ResponseBuilder> noUserRequired(HttpSession httpSession) {
     return Optional.ofNullable(
         null == httpSession.getAttribute("id") ? null : Response.status(Status.UNAUTHORIZED));
+  }
+
+  private static int recover(String email) {
+    int statusCode;
+    try {
+      var httpResponse =
+          HttpClient.newHttpClient()
+              .send(
+                  HttpRequest.newBuilder()
+                      .POST(BodyPublishers.ofString("{\"email\": \"" + email + "\"}"))
+                      .setHeader("content-type", "application/json")
+                      .uri(
+                          URI.create(
+                              PROPERTIES.getProperty("service.visualization")
+                                  + "/api/account/recover"))
+                      .build(),
+                  BodyHandlers.ofString());
+
+      statusCode = httpResponse.statusCode();
+
+      if (statusCode == Status.OK.getStatusCode()) LOGGER.log(Level.FINE, "Send email");
+    } catch (IOException | InterruptedException e) {
+      LOGGER.log(Level.SEVERE, "Could not change the password", e);
+      statusCode = Status.INTERNAL_SERVER_ERROR.getStatusCode();
+    }
+    return statusCode;
   }
 }
