@@ -78,6 +78,21 @@ public class AccountResource {
         .build();
   }
 
+  /**
+   * Log in.
+   *
+   * @return the response
+   * @since 1.0
+   */
+  @POST
+  @Path("logIn")
+  @Produces(MediaType.APPLICATION_JSON)
+  public static Response logIn(@Context HttpServletRequest httpServletRequest) {
+    LOGGER.log(Level.FINE, "Log in");
+
+    return noUserRequired(httpServletRequest.getSession()).orElseGet(Response::ok).build();
+  }
+
   private ResponseBuilder changePassword(String password, String token) {
     ResponseBuilder responseBuilder;
 
