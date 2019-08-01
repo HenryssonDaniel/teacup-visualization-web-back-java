@@ -13,6 +13,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse.BodyHandlers;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.logging.Level;
@@ -22,6 +23,7 @@ import javax.servlet.http.HttpSession;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
@@ -145,6 +147,30 @@ public class AccountResource {
     return noUserRequired(httpServletRequest.getSession())
         .orElseGet(() -> Response.status(signUp(email, password)))
         .build();
+  }
+
+  /**
+   * Verify.
+   *
+   * @return the response
+   * @since 1.0
+   */
+  @GET
+  @Path("verify/{token}")
+  @Produces(MediaType.TEXT_PLAIN)
+  public String verify(@PathParam("token") String token) {
+    LOGGER.log(Level.FINE, "Verify");
+
+    String message;
+
+    try {
+      message = verifyAccount(getJwtVerifier().verify(token).getClaim("email").asString());
+    } catch (JWTVerificationException e) {
+      LOGGER.log(Level.SEVERE, "The token could not be verified", e);
+      message = "The token is not valid";
+    }
+
+    return message;
   }
 
   private ResponseBuilder changePassword(String password, String token) {
@@ -280,5 +306,33 @@ public class AccountResource {
     }
 
     return statusCode;
+  }
+
+  private static String verifyAccount(String email) {
+    String message = null;
+
+    try {
+      var httpResponse =
+          HttpClient.newHttpClient()
+              .send(
+                  HttpRequest.newBuilder()
+                      .POST(BodyPublishers.ofString("{\"email\": \"" + email + "\"}"))
+                      .setHeader("content-type", "application/json")
+                      .uri(
+                          URI.create(
+                              PROPERTIES.getProperty("service.visualization")
+                                  + "/api/account/verify"))
+                      .build(),
+                  BodyHandlers.ofString());
+
+      var statusCode = httpResponse.statusCode();
+
+      if (statusCode == Status.OK.getStatusCode()) message = "The account have been verified";
+    } catch (IOException | InterruptedException e) {
+      LOGGER.log(Level.SEVERE, "Could not verify the account", e);
+    }
+
+    return Objects.requireNonNullElse(
+        message, "The account could not be verified, please try again later");
   }
 }
