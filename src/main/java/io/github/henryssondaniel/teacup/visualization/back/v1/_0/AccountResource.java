@@ -120,10 +120,30 @@ public class AccountResource {
   @Produces(MediaType.APPLICATION_JSON)
   public static Response recover(
       @Context HttpServletRequest httpServletRequest, @QueryParam("email") String email) {
-    LOGGER.log(Level.FINE, "Log in");
+    LOGGER.log(Level.FINE, "Recover");
 
     return noUserRequired(httpServletRequest.getSession())
         .orElseGet(() -> Response.status(recover(email)))
+        .build();
+  }
+
+  /**
+   * Sign up.
+   *
+   * @return the response
+   * @since 1.0
+   */
+  @POST
+  @Path("signUp")
+  @Produces(MediaType.APPLICATION_JSON)
+  public static Response signUp(
+      @Context HttpServletRequest httpServletRequest,
+      @QueryParam("email") String email,
+      @QueryParam("password") String password) {
+    LOGGER.log(Level.FINE, "Sign up");
+
+    return noUserRequired(httpServletRequest.getSession())
+        .orElseGet(() -> Response.status(signUp(email, password)))
         .build();
   }
 
@@ -202,6 +222,7 @@ public class AccountResource {
 
   private static int recover(String email) {
     int statusCode;
+
     try {
       var httpResponse =
           HttpClient.newHttpClient()
@@ -220,9 +241,44 @@ public class AccountResource {
 
       if (statusCode == Status.OK.getStatusCode()) LOGGER.log(Level.FINE, "Send email");
     } catch (IOException | InterruptedException e) {
-      LOGGER.log(Level.SEVERE, "Could not change the password", e);
+      LOGGER.log(Level.SEVERE, "Could not recover the account", e);
       statusCode = Status.INTERNAL_SERVER_ERROR.getStatusCode();
     }
+
+    return statusCode;
+  }
+
+  private static int signUp(String email, String password) {
+    int statusCode;
+
+    try {
+      var httpResponse =
+          HttpClient.newHttpClient()
+              .send(
+                  HttpRequest.newBuilder()
+                      .POST(
+                          BodyPublishers.ofString(
+                              "{\"email\": \""
+                                  + email
+                                  + "\", \"password\": \" "
+                                  + password
+                                  + "\"}"))
+                      .setHeader("content-type", "application/json")
+                      .uri(
+                          URI.create(
+                              PROPERTIES.getProperty("service.visualization")
+                                  + "/api/account/signUp"))
+                      .build(),
+                  BodyHandlers.ofString());
+
+      statusCode = httpResponse.statusCode();
+
+      if (statusCode == Status.OK.getStatusCode()) LOGGER.log(Level.FINE, "Send email and log in");
+    } catch (IOException | InterruptedException e) {
+      LOGGER.log(Level.SEVERE, "Could not sign up", e);
+      statusCode = Status.INTERNAL_SERVER_ERROR.getStatusCode();
+    }
+
     return statusCode;
   }
 }
