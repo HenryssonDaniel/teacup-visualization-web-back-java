@@ -31,6 +31,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.ResponseBuilder;
 import javax.ws.rs.core.Response.Status;
+import org.json.JSONObject;
 
 /**
  * Account resource. Handles account related requests.
@@ -75,8 +76,10 @@ public class AccountResource {
       @QueryParam("token") String token) {
     LOGGER.log(Level.FINE, "Change password");
 
-    return noUserRequired(httpServletRequest.getSession())
-        .orElseGet(() -> changePassword(password, token))
+    var httpSession = httpServletRequest.getSession();
+
+    return noUserRequired(httpSession)
+        .orElseGet(() -> changePassword(password, token, httpSession))
         .build();
   }
 
@@ -89,10 +92,16 @@ public class AccountResource {
   @POST
   @Path("logIn")
   @Produces(MediaType.APPLICATION_JSON)
-  public static Response logIn(@Context HttpServletRequest httpServletRequest) {
+  public static Response logIn(
+      @Context HttpServletRequest httpServletRequest,
+      @QueryParam("email") String email,
+      @QueryParam("password") String password) {
     LOGGER.log(Level.FINE, "Log in");
 
-    return noUserRequired(httpServletRequest.getSession()).orElseGet(Response::ok).build();
+    var httpSession = httpServletRequest.getSession();
+    return noUserRequired(httpSession)
+        .orElseGet(() -> Response.status(logIn(email, password, httpSession)))
+        .build();
   }
 
   /**
@@ -144,8 +153,10 @@ public class AccountResource {
       @QueryParam("password") String password) {
     LOGGER.log(Level.FINE, "Sign up");
 
-    return noUserRequired(httpServletRequest.getSession())
-        .orElseGet(() -> Response.status(signUp(email, password)))
+    var httpSession = httpServletRequest.getSession();
+
+    return noUserRequired(httpSession)
+        .orElseGet(() -> Response.status(signUp(email, password, httpSession)))
         .build();
   }
 
@@ -173,14 +184,16 @@ public class AccountResource {
     return message;
   }
 
-  private ResponseBuilder changePassword(String password, String token) {
+  private ResponseBuilder changePassword(String password, String token, HttpSession httpSession) {
     ResponseBuilder responseBuilder;
 
     try {
       responseBuilder =
           Response.status(
               changePasswordRequest(
-                  getJwtVerifier().verify(token).getClaim("email").asString(), password));
+                  getJwtVerifier().verify(token).getClaim("email").asString(),
+                  password,
+                  httpSession));
     } catch (JWTVerificationException e) {
       LOGGER.log(Level.SEVERE, "The token could not be verified", e);
       responseBuilder = Response.status(FORBIDDEN);
@@ -189,7 +202,7 @@ public class AccountResource {
     return responseBuilder;
   }
 
-  private static int changePasswordRequest(String email, String password) {
+  private static int changePasswordRequest(String email, String password, HttpSession httpSession) {
     int statusCode;
 
     try {
@@ -214,7 +227,7 @@ public class AccountResource {
 
       statusCode = httpResponse.statusCode();
 
-      if (statusCode == Status.OK.getStatusCode()) LOGGER.info("Log in");
+      if (statusCode == Status.OK.getStatusCode()) logIn(email, password, httpSession);
     } catch (IOException | InterruptedException e) {
       LOGGER.log(Level.SEVERE, "Could not change the password", e);
       statusCode = Status.INTERNAL_SERVER_ERROR.getStatusCode();
@@ -233,6 +246,43 @@ public class AccountResource {
     if (null == jwtVerifier) jwtVerifier = JWT.require(getAlgorithm()).build();
 
     return jwtVerifier;
+  }
+
+  private static int logIn(String email, String password, HttpSession httpSession) {
+    int statusCode;
+
+    try {
+      var httpResponse =
+          HttpClient.newHttpClient()
+              .send(
+                  HttpRequest.newBuilder()
+                      .POST(
+                          BodyPublishers.ofString(
+                              "{\"email\": \"" + email + "\", \"password\": " + password + "\"}"))
+                      .setHeader("content-type", "application/json")
+                      .uri(
+                          URI.create(
+                              PROPERTIES.getProperty("service.visualization")
+                                  + "/api/account/logIn"))
+                      .build(),
+                  BodyHandlers.ofString());
+
+      statusCode = httpResponse.statusCode();
+
+      if (statusCode == Status.OK.getStatusCode()) {
+        var jsonObject = new JSONObject(httpResponse.body());
+
+        httpSession.setAttribute("email", jsonObject.getString("email"));
+        httpSession.setAttribute("firstName", jsonObject.getString("firstName"));
+        httpSession.setAttribute("id", jsonObject.getString("id"));
+        httpSession.setAttribute("lastName", jsonObject.getString("lastName"));
+      }
+    } catch (IOException | InterruptedException e) {
+      LOGGER.log(Level.SEVERE, "Could not log in", e);
+      statusCode = Status.INTERNAL_SERVER_ERROR.getStatusCode();
+    }
+
+    return statusCode;
   }
 
   private static ResponseBuilder logOut(HttpSession httpSession) {
@@ -274,7 +324,7 @@ public class AccountResource {
     return statusCode;
   }
 
-  private static int signUp(String email, String password) {
+  private static int signUp(String email, String password, HttpSession httpSession) {
     int statusCode;
 
     try {
@@ -299,7 +349,11 @@ public class AccountResource {
 
       statusCode = httpResponse.statusCode();
 
-      if (statusCode == Status.OK.getStatusCode()) LOGGER.log(Level.FINE, "Send email and log in");
+      if (statusCode == Status.OK.getStatusCode()) {
+        LOGGER.log(Level.FINE, "Send email");
+
+        statusCode = logIn(email, password, httpSession);
+      }
     } catch (IOException | InterruptedException e) {
       LOGGER.log(Level.SEVERE, "Could not sign up", e);
       statusCode = Status.INTERNAL_SERVER_ERROR.getStatusCode();
