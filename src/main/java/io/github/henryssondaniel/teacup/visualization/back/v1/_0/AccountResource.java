@@ -13,11 +13,21 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse.BodyHandlers;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Date;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.mail.Message;
+import javax.mail.Message.RecipientType;
+import javax.mail.MessagingException;
+import javax.mail.Session;
+import javax.mail.Transport;
+import javax.mail.internet.InternetAddress;
+import javax.mail.internet.MimeMessage;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.GET;
@@ -129,7 +139,7 @@ public class AccountResource {
   @POST
   @Path("recover")
   @Produces(MediaType.APPLICATION_JSON)
-  public static Response recover(
+  public Response recover(
       @Context HttpServletRequest httpServletRequest, @QueryParam("email") String email) {
     LOGGER.log(Level.FINE, "Recover");
 
@@ -147,16 +157,14 @@ public class AccountResource {
   @POST
   @Path("signUp")
   @Produces(MediaType.APPLICATION_JSON)
-  public static Response signUp(
+  public Response signUp(
       @Context HttpServletRequest httpServletRequest,
       @QueryParam("email") String email,
       @QueryParam("password") String password) {
     LOGGER.log(Level.FINE, "Sign up");
 
-    var httpSession = httpServletRequest.getSession();
-
-    return noUserRequired(httpSession)
-        .orElseGet(() -> Response.status(signUp(email, password, httpSession)))
+    return noUserRequired(httpServletRequest.getSession())
+        .orElseGet(() -> Response.status(signUp(email, password, httpServletRequest)))
         .build();
   }
 
@@ -296,7 +304,7 @@ public class AccountResource {
         null == httpSession.getAttribute("id") ? null : Response.status(Status.UNAUTHORIZED));
   }
 
-  private static int recover(String email) {
+  private int recover(String email) {
     int statusCode;
 
     try {
@@ -315,7 +323,15 @@ public class AccountResource {
 
       statusCode = httpResponse.statusCode();
 
-      if (statusCode == Status.OK.getStatusCode()) LOGGER.log(Level.FINE, "Send email");
+      if (statusCode == Status.OK.getStatusCode())
+        sendEmail(
+            "The recover code: "
+                + JWT.create()
+                    .withClaim("email", email)
+                    .withExpiresAt(Date.from(Instant.now().plus(1L, ChronoUnit.HOURS)))
+                    .sign(getAlgorithm()),
+            "Recover",
+            email);
     } catch (IOException | InterruptedException e) {
       LOGGER.log(Level.SEVERE, "Could not recover the account", e);
       statusCode = Status.INTERNAL_SERVER_ERROR.getStatusCode();
@@ -324,7 +340,25 @@ public class AccountResource {
     return statusCode;
   }
 
-  private static int signUp(String email, String password, HttpSession httpSession) {
+  private static void sendEmail(String content, String subject, String to) {
+    var properties = new Properties();
+    properties.setProperty("mail.smtp.host", PROPERTIES.getProperty("SMTP_HOST"));
+    properties.setProperty("mail.smtp.port", PROPERTIES.getProperty("SMTP_PORT"));
+
+    try {
+      Message message = new MimeMessage(Session.getInstance(properties));
+      message.setFrom(new InternetAddress(PROPERTIES.getProperty("SMTP_FROM")));
+      message.setRecipients(RecipientType.TO, InternetAddress.parse(to));
+      message.setSubject(subject + " your Teacup account");
+      message.setText(content);
+
+      Transport.send(message);
+    } catch (MessagingException e) {
+      LOGGER.log(Level.SEVERE, "Could not send the email", e);
+    }
+  }
+
+  private int signUp(String email, String password, HttpServletRequest httpServletRequest) {
     int statusCode;
 
     try {
@@ -350,9 +384,15 @@ public class AccountResource {
       statusCode = httpResponse.statusCode();
 
       if (statusCode == Status.OK.getStatusCode()) {
-        LOGGER.log(Level.FINE, "Send email");
+        sendEmail(
+            "Please verify your account by clicking here: "
+                + httpServletRequest.getRequestURI()
+                + "api/account/verify/"
+                + JWT.create().withClaim("email", email).sign(getAlgorithm()),
+            "Verify",
+            email);
 
-        statusCode = logIn(email, password, httpSession);
+        statusCode = logIn(email, password, httpServletRequest.getSession());
       }
     } catch (IOException | InterruptedException e) {
       LOGGER.log(Level.SEVERE, "Could not sign up", e);
