@@ -89,7 +89,7 @@ publishing {
             pom {
                 name = project.group + ':' + project.name
                 description = 'Visualization web back-end'
-                url = 'https://github.com/HenryssonDaniel/teacup-visualization-back-java'
+                url = 'https://github.com/HenryssonDaniel/teacup-visualization-web-back-java'
 
                 licenses {
                     license {
@@ -108,9 +108,9 @@ publishing {
                 }
 
                 scm {
-                    connection = 'scm:git:git://github.com/HenryssonDaniel/teacup-visualization-back-java.git'
-                    developerConnection = 'scm:git:ssh://github.com/HenryssonDaniel/teacup-visualization-back-java.git'
-                    url = 'https://github.com/HenryssonDaniel/teacup-visualization-back-java'
+                    connection = 'scm:git:git://github.com/HenryssonDaniel/teacup-visualization-web-back-java.git'
+                    developerConnection = 'scm:git:ssh://github.com/HenryssonDaniel/teacup-visualization-web-back-java.git'
+                    url = 'https://github.com/HenryssonDaniel/teacup-visualization-web-back-java'
                 }
             }
         }
@@ -144,6 +144,6 @@ signing {
 
 sonarqube {
     properties {
-        property "sonar.projectKey", "HenryssonDaniel_teacup-visualization-back-java"
+        property "sonar.projectKey", "HenryssonDaniel_teacup-visualization-web-back-java"
     }
 }
