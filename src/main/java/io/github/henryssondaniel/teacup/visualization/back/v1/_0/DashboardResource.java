@@ -29,6 +29,7 @@ import org.json.JSONObject;
  *
  * @since 1.0
  */
+@Path("{a:v1/dashboard|v1.0/dashboard|dashboard}")
 public class DashboardResource {
   private static final Logger LOGGER = Logger.getLogger(DashboardResource.class.getName());
   private static final Properties PROPERTIES = Factory.getProperties();
@@ -40,7 +41,6 @@ public class DashboardResource {
    * @since 1.0
    */
   @GET
-  @Path("{a:v1/dashboard|v1.0/dashboard|dashboard}")
   @Produces(MediaType.APPLICATION_JSON)
   public static Response dashboard(@Context HttpServletRequest httpServletRequest) {
     LOGGER.log(Level.FINE, "Dashboard");
