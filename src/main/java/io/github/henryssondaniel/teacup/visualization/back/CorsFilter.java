@@ -18,7 +18,7 @@ public class CorsFilter implements ContainerResponseFilter {
   public void filter(
       ContainerRequestContext containerRequestContext,
       ContainerResponseContext containerResponseContext) {
-    LOGGER.log(Level.SEVERE, "FILTER FILTER FILTER ADDED");
+    LOGGER.log(Level.FINE, "Filter");
 
     containerResponseContext
         .getHeaders()
