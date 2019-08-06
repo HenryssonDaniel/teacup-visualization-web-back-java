@@ -1,5 +1,7 @@
 package io.github.henryssondaniel.teacup.visualization.back.v1._0;
 
+import static io.github.henryssondaniel.teacup.visualization.back.v1._0.Utils.allowCredentials;
+import static io.github.henryssondaniel.teacup.visualization.back.v1._0.Utils.userRequired;
 import static javax.ws.rs.core.Response.Status.FORBIDDEN;
 
 import com.auth0.jwt.JWT;
@@ -68,7 +70,7 @@ public class AccountResource {
   public static Response authorized(@Context HttpServletRequest httpServletRequest) {
     LOGGER.log(Level.FINE, "Authorized");
 
-    return Utils.userRequired(httpServletRequest.getSession()).orElseGet(Response::ok).build();
+    return allowCredentials(userRequired(httpServletRequest.getSession()).orElseGet(Response::ok));
   }
 
   /**
@@ -88,9 +90,8 @@ public class AccountResource {
 
     var httpSession = httpServletRequest.getSession();
 
-    return noUserRequired(httpSession)
-        .orElseGet(() -> changePassword(password, token, httpSession))
-        .build();
+    return allowCredentials(
+        noUserRequired(httpSession).orElseGet(() -> changePassword(password, token, httpSession)));
   }
 
   /**
@@ -109,9 +110,9 @@ public class AccountResource {
     LOGGER.log(Level.FINE, "Log in");
 
     var httpSession = httpServletRequest.getSession();
-    return noUserRequired(httpSession)
-        .orElseGet(() -> Response.status(logIn(email, password, httpSession)))
-        .build();
+    return allowCredentials(
+        noUserRequired(httpSession)
+            .orElseGet(() -> Response.status(logIn(email, password, httpSession))));
   }
 
   /**
@@ -127,7 +128,7 @@ public class AccountResource {
     LOGGER.log(Level.FINE, "Log in");
 
     var httpSession = httpServletRequest.getSession();
-    return Utils.userRequired(httpSession).orElseGet(() -> logOut(httpSession)).build();
+    return allowCredentials(userRequired(httpSession).orElseGet(() -> logOut(httpSession)));
   }
 
   /**
@@ -143,9 +144,9 @@ public class AccountResource {
       @Context HttpServletRequest httpServletRequest, @QueryParam("email") String email) {
     LOGGER.log(Level.FINE, "Recover");
 
-    return noUserRequired(httpServletRequest.getSession())
-        .orElseGet(() -> Response.status(recover(email)))
-        .build();
+    return allowCredentials(
+        noUserRequired(httpServletRequest.getSession())
+            .orElseGet(() -> Response.status(recover(email))));
   }
 
   /**
@@ -163,9 +164,9 @@ public class AccountResource {
       @QueryParam("password") String password) {
     LOGGER.log(Level.FINE, "Sign up");
 
-    return noUserRequired(httpServletRequest.getSession())
-        .orElseGet(() -> Response.status(signUp(email, password, httpServletRequest)))
-        .build();
+    return allowCredentials(
+        noUserRequired(httpServletRequest.getSession())
+            .orElseGet(() -> Response.status(signUp(email, password, httpServletRequest))));
   }
 
   /**

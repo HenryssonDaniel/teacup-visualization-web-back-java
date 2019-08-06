@@ -9,6 +9,10 @@ import javax.ws.rs.core.Response.Status;
 enum Utils {
   ;
 
+  static Response allowCredentials(ResponseBuilder responseBuilder) {
+    return responseBuilder.header("Access-Control-Allow-credentials", "true").build();
+  }
+
   static Optional<ResponseBuilder> userRequired(HttpSession httpSession) {
     return Optional.ofNullable(
         null == httpSession.getAttribute("id") ? Response.status(Status.UNAUTHORIZED) : null);

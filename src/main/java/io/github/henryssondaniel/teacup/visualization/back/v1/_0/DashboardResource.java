@@ -1,5 +1,8 @@
 package io.github.henryssondaniel.teacup.visualization.back.v1._0;
 
+import static io.github.henryssondaniel.teacup.visualization.back.v1._0.Utils.allowCredentials;
+import static io.github.henryssondaniel.teacup.visualization.back.v1._0.Utils.userRequired;
+
 import io.github.henryssondaniel.teacup.core.configuration.Factory;
 import java.io.IOException;
 import java.net.URI;
@@ -43,7 +46,7 @@ public class DashboardResource {
     LOGGER.log(Level.FINE, "Dashboard");
 
     var httpSession = httpServletRequest.getSession();
-    return Utils.userRequired(httpSession).orElseGet(() -> getDashBoard(httpSession)).build();
+    return allowCredentials(userRequired(httpSession).orElseGet(() -> getDashBoard(httpSession)));
   }
 
   private static ResponseBuilder getDashBoard(HttpSession httpSession) {

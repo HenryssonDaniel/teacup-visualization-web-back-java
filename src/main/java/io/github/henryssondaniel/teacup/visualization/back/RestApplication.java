@@ -25,8 +25,9 @@ public class RestApplication extends Application {
   public Set<Class<?>> getClasses() {
     LOGGER.log(Level.FINE, "Get classes");
 
-    List<Class<?>> resources = new ArrayList<>(2);
+    List<Class<?>> resources = new ArrayList<>(3);
     resources.add(AccountResource.class);
+    resources.add(CorsFilter.class);
     resources.add(DashboardResource.class);
 
     return new HashSet<>(resources);
