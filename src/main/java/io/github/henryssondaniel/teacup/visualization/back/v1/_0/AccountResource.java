@@ -37,7 +37,6 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
@@ -82,16 +81,14 @@ public class AccountResource {
   @POST
   @Path("changePassword")
   @Produces(MediaType.APPLICATION_JSON)
-  public Response changePassword(
-      @Context HttpServletRequest httpServletRequest,
-      @QueryParam("password") String password,
-      @QueryParam("token") String token) {
+  public Response changePassword(String data, @Context HttpServletRequest httpServletRequest) {
     LOGGER.log(Level.FINE, "Change password");
 
     var httpSession = httpServletRequest.getSession();
 
     return allowCredentials(
-        noUserRequired(httpSession).orElseGet(() -> changePassword(password, token, httpSession)));
+        noUserRequired(httpSession)
+            .orElseGet(() -> changePassword(httpSession, new JSONObject(data))));
   }
 
   /**
@@ -103,16 +100,21 @@ public class AccountResource {
   @POST
   @Path("logIn")
   @Produces(MediaType.APPLICATION_JSON)
-  public static Response logIn(
-      @Context HttpServletRequest httpServletRequest,
-      @QueryParam("email") String email,
-      @QueryParam("password") String password) {
+  public static Response logIn(String data, @Context HttpServletRequest httpServletRequest) {
     LOGGER.log(Level.FINE, "Log in");
 
     var httpSession = httpServletRequest.getSession();
     return allowCredentials(
         noUserRequired(httpSession)
-            .orElseGet(() -> Response.status(logIn(email, password, httpSession))));
+            .orElseGet(
+                () -> {
+                  var jsonObject = new JSONObject(data);
+                  return Response.status(
+                      logIn(
+                          jsonObject.getString("email"),
+                          jsonObject.getString("password"),
+                          httpSession));
+                }));
   }
 
   /**
@@ -140,13 +142,12 @@ public class AccountResource {
   @POST
   @Path("recover")
   @Produces(MediaType.APPLICATION_JSON)
-  public Response recover(
-      @Context HttpServletRequest httpServletRequest, @QueryParam("email") String email) {
+  public Response recover(String data, @Context HttpServletRequest httpServletRequest) {
     LOGGER.log(Level.FINE, "Recover");
 
     return allowCredentials(
         noUserRequired(httpServletRequest.getSession())
-            .orElseGet(() -> Response.status(recover(email))));
+            .orElseGet(() -> Response.status(recover(new JSONObject(data).getString("email")))));
   }
 
   /**
@@ -158,15 +159,12 @@ public class AccountResource {
   @POST
   @Path("signUp")
   @Produces(MediaType.APPLICATION_JSON)
-  public Response signUp(
-      @Context HttpServletRequest httpServletRequest,
-      @QueryParam("email") String email,
-      @QueryParam("password") String password) {
+  public Response signUp(String data, @Context HttpServletRequest httpServletRequest) {
     LOGGER.log(Level.FINE, "Sign up");
 
     return allowCredentials(
         noUserRequired(httpServletRequest.getSession())
-            .orElseGet(() -> Response.status(signUp(email, password, httpServletRequest))));
+            .orElseGet(() -> Response.status(signUp(httpServletRequest, new JSONObject(data)))));
   }
 
   /**
@@ -193,15 +191,18 @@ public class AccountResource {
     return message;
   }
 
-  private ResponseBuilder changePassword(String password, String token, HttpSession httpSession) {
+  private ResponseBuilder changePassword(HttpSession httpSession, JSONObject jsonObject) {
     ResponseBuilder responseBuilder;
 
     try {
       responseBuilder =
           Response.status(
               changePasswordRequest(
-                  getJwtVerifier().verify(token).getClaim("email").asString(),
-                  password,
+                  getJwtVerifier()
+                      .verify(jsonObject.getString("token"))
+                      .getClaim("email")
+                      .asString(),
+                  jsonObject.getString("password"),
                   httpSession));
     } catch (JWTVerificationException e) {
       LOGGER.log(Level.SEVERE, "The token could not be verified", e);
@@ -267,7 +268,7 @@ public class AccountResource {
                   HttpRequest.newBuilder()
                       .POST(
                           BodyPublishers.ofString(
-                              "{\"email\": \"" + email + "\", \"password\": " + password + "\"}"))
+                              "{\"email\": \"" + email + "\", \"password\": \"" + password + "\"}"))
                       .setHeader("content-type", "application/json")
                       .uri(
                           URI.create(
@@ -359,8 +360,11 @@ public class AccountResource {
     }
   }
 
-  private int signUp(String email, String password, HttpServletRequest httpServletRequest) {
+  private int signUp(HttpServletRequest httpServletRequest, JSONObject jsonObject) {
     int statusCode;
+
+    var email = jsonObject.getString("email");
+    var password = jsonObject.getString("password");
 
     try {
       var httpResponse =
@@ -371,6 +375,10 @@ public class AccountResource {
                           BodyPublishers.ofString(
                               "{\"email\": \""
                                   + email
+                                  + "\", \"firstName\": \""
+                                  + jsonObject.getString("firstName")
+                                  + "\", \"lastName\": \""
+                                  + jsonObject.getString("lastName")
                                   + "\", \"password\": \" "
                                   + password
                                   + "\"}"))
