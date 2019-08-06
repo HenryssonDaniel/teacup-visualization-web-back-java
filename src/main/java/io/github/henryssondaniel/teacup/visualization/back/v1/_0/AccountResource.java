@@ -379,7 +379,7 @@ public class AccountResource {
                                   + jsonObject.getString("firstName")
                                   + "\", \"lastName\": \""
                                   + jsonObject.getString("lastName")
-                                  + "\", \"password\": \" "
+                                  + "\", \"password\": \""
                                   + password
                                   + "\"}"))
                       .setHeader("content-type", "application/json")
@@ -395,8 +395,10 @@ public class AccountResource {
       if (statusCode == Status.OK.getStatusCode()) {
         sendEmail(
             "Please verify your account by clicking here: "
-                + httpServletRequest.getRequestURI()
-                + "api/account/verify/"
+                + httpServletRequest.getServerName()
+                + ':'
+                + httpServletRequest.getServerPort()
+                + "/api/account/verify/"
                 + JWT.create().withClaim("email", email).sign(getAlgorithm()),
             "Verify",
             email);
