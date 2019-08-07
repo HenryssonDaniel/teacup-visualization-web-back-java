@@ -125,8 +125,8 @@ public class AccountResource {
                   return Response.status(
                       logIn(
                           jsonObject.getString(EMAIL),
-                          jsonObject.getString(PASSWORD),
-                          httpSession));
+                          httpSession,
+                          jsonObject.getString(PASSWORD)));
                 }));
   }
 
@@ -212,8 +212,8 @@ public class AccountResource {
           Response.status(
               changePasswordRequest(
                   getJwtVerifier().verify(jsonObject.getString(TOKEN)).getClaim(EMAIL).asString(),
-                  jsonObject.getString(PASSWORD),
-                  httpSession));
+                  httpSession,
+                  jsonObject.getString(PASSWORD)));
     } catch (JWTVerificationException e) {
       LOGGER.log(Level.SEVERE, "The token could not be verified", e);
       responseBuilder = Response.status(FORBIDDEN);
@@ -222,7 +222,7 @@ public class AccountResource {
     return responseBuilder;
   }
 
-  private static int changePasswordRequest(String email, String password, HttpSession httpSession) {
+  private static int changePasswordRequest(String email, HttpSession httpSession, String password) {
     int statusCode;
 
     try {
@@ -237,7 +237,7 @@ public class AccountResource {
                       CHANGE_PASSWORD))
               .statusCode();
 
-      if (statusCode == Status.OK.getStatusCode()) logIn(email, password, httpSession);
+      if (statusCode == Status.OK.getStatusCode()) logIn(email, httpSession, password);
     } catch (IOException | InterruptedException e) {
       LOGGER.log(Level.SEVERE, "Could not change the password", e);
       statusCode = Status.INTERNAL_SERVER_ERROR.getStatusCode();
@@ -278,7 +278,7 @@ public class AccountResource {
     return jwtVerifier;
   }
 
-  private static int logIn(String email, String password, HttpSession httpSession) {
+  private static int logIn(String email, HttpSession httpSession, String password) {
     int statusCode;
 
     try {
@@ -394,7 +394,7 @@ public class AccountResource {
             "Verify",
             email);
 
-        statusCode = logIn(email, password, httpServletRequest.getSession());
+        statusCode = logIn(email, httpServletRequest.getSession(), password);
       }
     } catch (IOException | InterruptedException e) {
       LOGGER.log(Level.SEVERE, "Could not sign up", e);
