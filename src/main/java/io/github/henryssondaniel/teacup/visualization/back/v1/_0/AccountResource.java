@@ -68,7 +68,7 @@ public class AccountResource {
   private static final String LAST_NAME = "lastName";
   private static final Logger LOGGER = Logger.getLogger(AccountResource.class.getName());
   private static final String LOG_IN = "logIn";
-  private static final String PATH = "/api/account/";
+  private static final String PATH = "api/account/";
   private static final Properties PROPERTIES = Factory.getProperties();
   private static final String RECOVER = "recover";
   private static final String SECRET = "password";
@@ -256,7 +256,7 @@ public class AccountResource {
     return HttpRequest.newBuilder()
         .POST(BodyPublishers.ofString('{' + body + '}'))
         .setHeader("content-type", "application/json")
-        .uri(URI.create(PROPERTIES.getProperty("service.visualization") + PATH + path))
+        .uri(URI.create(PROPERTIES.getProperty("service.visualization") + '/' + PATH + path))
         .build();
   }
 
@@ -393,6 +393,7 @@ public class AccountResource {
                 + httpServletRequest.getServerName()
                 + ':'
                 + httpServletRequest.getServerPort()
+                + '/'
                 + PATH
                 + "verify/"
                 + JWT.create().withClaim(EMAIL, email).sign(getAlgorithm()),
