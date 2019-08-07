@@ -12,12 +12,12 @@ import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.JWTVerifier;
 import io.github.henryssondaniel.teacup.core.configuration.Factory;
 import java.io.IOException;
+import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
-import java.nio.file.Paths;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
@@ -68,7 +68,7 @@ public class AccountResource {
   private static final String LAST_NAME = "lastName";
   private static final Logger LOGGER = Logger.getLogger(AccountResource.class.getName());
   private static final String LOG_IN = "logIn";
-  private static final String PATH = "api/account";
+  private static final String PATH = "/api/account/";
   private static final Properties PROPERTIES = Factory.getProperties();
   private static final String RECOVER = "recover";
   private static final String SECRET = "password";
@@ -256,11 +256,7 @@ public class AccountResource {
     return HttpRequest.newBuilder()
         .POST(BodyPublishers.ofString('{' + body + '}'))
         .setHeader("content-type", "application/json")
-        .uri(
-            Paths.get(PROPERTIES.getProperty("service.visualization"))
-                .resolve(PATH)
-                .resolve(path)
-                .toUri())
+        .uri(URI.create(PROPERTIES.getProperty("service.visualization") + PATH + path))
         .build();
   }
 
@@ -351,8 +347,8 @@ public class AccountResource {
 
   private static void sendEmail(String content, String subject, String to) {
     var properties = new Properties();
-    properties.setProperty("mail.smtp.host", PROPERTIES.getProperty("SMTP_HOST"));
-    properties.setProperty("mail.smtp.port", PROPERTIES.getProperty("SMTP_PORT"));
+    properties.setProperty("mail.smtp.host", PROPERTIES.getProperty("smtp.host"));
+    properties.setProperty("mail.smtp.port", PROPERTIES.getProperty("smtp.port"));
 
     try {
       Message message = new MimeMessage(Session.getInstance(properties));
@@ -397,9 +393,9 @@ public class AccountResource {
                 + httpServletRequest.getServerName()
                 + ':'
                 + httpServletRequest.getServerPort()
-                + '/'
-                + Paths.get(
-                    PATH, "verify", JWT.create().withClaim(EMAIL, email).sign(getAlgorithm())),
+                + PATH
+                + "verify/"
+                + JWT.create().withClaim(EMAIL, email).sign(getAlgorithm()),
             "Verify",
             email);
 
