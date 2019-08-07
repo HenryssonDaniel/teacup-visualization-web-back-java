@@ -302,7 +302,7 @@ public class AccountResource {
   }
 
   private static ResponseBuilder logOut(HttpSession httpSession) {
-    httpSession.removeAttribute(ID);
+    httpSession.invalidate();
 
     return Response.ok();
   }
