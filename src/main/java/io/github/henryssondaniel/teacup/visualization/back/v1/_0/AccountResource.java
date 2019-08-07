@@ -54,10 +54,10 @@ import org.json.JSONObject;
 @Path("{a:v1/account|v1.0/account|account}")
 public class AccountResource {
   private static final String AUTHORIZED = "authorized";
-  private static final String CHANGE_PASSWORD = "changePassword";
+  private static final String CHANGE_SECRET = "changePassword";
   private static final CharSequence DELIMITER = ", ";
   private static final String EMAIL = "email";
-  private static final String ERROR_CHANGE_PASSWORD = "Could not change the password";
+  private static final String ERROR_CHANGE_SECRET = "Could not change the password";
   private static final String ERROR_LOG_IN = "Could not log in";
   private static final String ERROR_RECOVER = "Could not recover the account";
   private static final String ERROR_SIGN_UP = "Could not sign up";
@@ -67,10 +67,10 @@ public class AccountResource {
   private static final String LAST_NAME = "lastName";
   private static final Logger LOGGER = Logger.getLogger(AccountResource.class.getName());
   private static final String LOG_IN = "logIn";
-  private static final String PASSWORD = "password";
   private static final String PATH = "api/account";
   private static final Properties PROPERTIES = Factory.getProperties();
   private static final String RECOVER = "recover";
+  private static final String SECRET = "password";
   private static final String TOKEN = "token";
 
   private Algorithm algorithm;
@@ -98,7 +98,7 @@ public class AccountResource {
    * @since 1.0
    */
   @POST
-  @Path(CHANGE_PASSWORD)
+  @Path(CHANGE_SECRET)
   @Produces(MediaType.APPLICATION_JSON)
   public Response changePassword(String data, @Context HttpServletRequest httpServletRequest) {
     LOGGER.log(Level.FINE, "Change password");
@@ -129,9 +129,7 @@ public class AccountResource {
                   var jsonObject = new JSONObject(data);
                   return Response.status(
                       logIn(
-                          jsonObject.getString(EMAIL),
-                          httpSession,
-                          jsonObject.getString(PASSWORD)));
+                          jsonObject.getString(EMAIL), httpSession, jsonObject.getString(SECRET)));
                 }));
   }
 
@@ -218,7 +216,7 @@ public class AccountResource {
               changePasswordRequest(
                   getJwtVerifier().verify(jsonObject.getString(TOKEN)).getClaim(EMAIL).asString(),
                   httpSession,
-                  jsonObject.getString(PASSWORD)));
+                  jsonObject.getString(SECRET)));
     } catch (JWTVerificationException e) {
       LOGGER.log(Level.SEVERE, "The token could not be verified", e);
       responseBuilder = Response.status(FORBIDDEN);
@@ -238,15 +236,15 @@ public class AccountResource {
                           DELIMITER,
                           createKeyValue(AUTHORIZED, false),
                           createJson(EMAIL, email),
-                          createJson(PASSWORD, password)),
-                      CHANGE_PASSWORD))
+                          createJson(SECRET, password)),
+                      CHANGE_SECRET))
               .statusCode();
 
       if (statusCode == Status.OK.getStatusCode()) logIn(email, httpSession, password);
     } catch (IOException e) {
-      statusCode = handleException(ERROR_CHANGE_PASSWORD, e);
+      statusCode = handleException(ERROR_CHANGE_SECRET, e);
     } catch (InterruptedException e) {
-      statusCode = handleException(ERROR_CHANGE_PASSWORD, e);
+      statusCode = handleException(ERROR_CHANGE_SECRET, e);
       Thread.currentThread().interrupt();
     }
 
@@ -297,8 +295,7 @@ public class AccountResource {
       var httpResponse =
           sendRequest(
               createHttpRequest(
-                  join(DELIMITER, createJson(EMAIL, email), createJson(PASSWORD, password)),
-                  LOG_IN));
+                  join(DELIMITER, createJson(EMAIL, email), createJson(SECRET, password)), LOG_IN));
 
       statusCode = httpResponse.statusCode();
 
@@ -383,7 +380,7 @@ public class AccountResource {
     int statusCode;
 
     var email = jsonObject.getString(EMAIL);
-    var password = jsonObject.getString(PASSWORD);
+    var password = jsonObject.getString(SECRET);
 
     try {
       statusCode =
@@ -394,7 +391,7 @@ public class AccountResource {
                           createJson(EMAIL, email),
                           createJson(FIRST_NAME, jsonObject.getString(FIRST_NAME)),
                           createJson(LAST_NAME, jsonObject.getString(LAST_NAME)),
-                          createJson(PASSWORD, password)),
+                          createJson(SECRET, password)),
                       "signUp"))
               .statusCode();
 
