@@ -14,6 +14,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
+import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -51,8 +52,14 @@ import org.json.JSONObject;
  */
 @Path("{a:v1/account|v1.0/account|account}")
 public class AccountResource {
+
+  private static final String EMAIL = "email";
+  private static final String JSON_EMAIL = "\"email\": \"%s\"";
+  private static final String JSON_PASSWORD = "\"password\": \"%s\"";
   private static final Logger LOGGER = Logger.getLogger(AccountResource.class.getName());
+  private static final String PASSWORD = "password";
   private static final Properties PROPERTIES = Factory.getProperties();
+  private static final String TOKEN = "token";
 
   private Algorithm algorithm;
   private JWTVerifier jwtVerifier;
@@ -85,7 +92,6 @@ public class AccountResource {
     LOGGER.log(Level.FINE, "Change password");
 
     var httpSession = httpServletRequest.getSession();
-
     return allowCredentials(
         noUserRequired(httpSession)
             .orElseGet(() -> changePassword(httpSession, new JSONObject(data))));
@@ -111,8 +117,8 @@ public class AccountResource {
                   var jsonObject = new JSONObject(data);
                   return Response.status(
                       logIn(
-                          jsonObject.getString("email"),
-                          jsonObject.getString("password"),
+                          jsonObject.getString(EMAIL),
+                          jsonObject.getString(PASSWORD),
                           httpSession));
                 }));
   }
@@ -147,7 +153,7 @@ public class AccountResource {
 
     return allowCredentials(
         noUserRequired(httpServletRequest.getSession())
-            .orElseGet(() -> Response.status(recover(new JSONObject(data).getString("email")))));
+            .orElseGet(() -> Response.status(recover(new JSONObject(data).getString(EMAIL)))));
   }
 
   /**
@@ -176,19 +182,27 @@ public class AccountResource {
   @GET
   @Path("verify/{token}")
   @Produces(MediaType.TEXT_PLAIN)
-  public String verify(@PathParam("token") String token) {
+  public String verify(@PathParam(TOKEN) String token) {
     LOGGER.log(Level.FINE, "Verify");
 
     String message;
 
     try {
-      message = verifyAccount(getJwtVerifier().verify(token).getClaim("email").asString());
+      message = verifyAccount(getJwtVerifier().verify(token).getClaim(EMAIL).asString());
     } catch (JWTVerificationException e) {
       LOGGER.log(Level.SEVERE, "The token could not be verified", e);
       message = "The token is not valid";
     }
 
     return message;
+  }
+
+  private static HttpRequest buildHttpRequest(String body, String path) {
+    return HttpRequest.newBuilder()
+        .POST(BodyPublishers.ofString('{' + body + '}'))
+        .setHeader("content-type", "application/json")
+        .uri(URI.create(PROPERTIES.getProperty("service.visualization") + path))
+        .build();
   }
 
   private ResponseBuilder changePassword(HttpSession httpSession, JSONObject jsonObject) {
@@ -198,11 +212,8 @@ public class AccountResource {
       responseBuilder =
           Response.status(
               changePasswordRequest(
-                  getJwtVerifier()
-                      .verify(jsonObject.getString("token"))
-                      .getClaim("email")
-                      .asString(),
-                  jsonObject.getString("password"),
+                  getJwtVerifier().verify(jsonObject.getString(TOKEN)).getClaim(EMAIL).asString(),
+                  jsonObject.getString(PASSWORD),
                   httpSession));
     } catch (JWTVerificationException e) {
       LOGGER.log(Level.SEVERE, "The token could not be verified", e);
@@ -216,24 +227,7 @@ public class AccountResource {
     int statusCode;
 
     try {
-      var httpResponse =
-          HttpClient.newHttpClient()
-              .send(
-                  HttpRequest.newBuilder()
-                      .POST(
-                          BodyPublishers.ofString(
-                              "{\"authorized\": false, \"email\": \""
-                                  + email
-                                  + "\", \"password\": \""
-                                  + password
-                                  + "\"}"))
-                      .setHeader("content-type", "application/json")
-                      .uri(
-                          URI.create(
-                              PROPERTIES.getProperty("service.visualization")
-                                  + "/api/account/changePassword"))
-                      .build(),
-                  BodyHandlers.ofString());
+      var httpResponse = sendRequest(createHttpRequest(false, email, password, "changePassword"));
 
       statusCode = httpResponse.statusCode();
 
@@ -246,14 +240,35 @@ public class AccountResource {
     return statusCode;
   }
 
+  private static HttpRequest createHttpRequest(String email, String path) {
+    return createHttpRequest(email, null, path);
+  }
+
+  private static HttpRequest createHttpRequest(String email, String password, String path) {
+    return createHttpRequest(null, email, password, path);
+  }
+
+  private static HttpRequest createHttpRequest(
+      Boolean authorized, String email, String password, String path) {
+    var body = new StringBuilder(0);
+
+    if (authorized != null) body.append("\"authorized\": ").append(authorized).append(", ");
+
+    body.append(String.format(JSON_EMAIL, email));
+
+    if (password != null) body.append(", ").append(String.format(JSON_PASSWORD, password));
+
+    return buildHttpRequest(body.toString(), "/api/account/" + path);
+  }
+
   private Algorithm getAlgorithm() {
-    if (null == algorithm) algorithm = Algorithm.HMAC256(PROPERTIES.getProperty("secret.key"));
+    if (algorithm == null) algorithm = Algorithm.HMAC256(PROPERTIES.getProperty("secret.key"));
 
     return algorithm;
   }
 
   private JWTVerifier getJwtVerifier() {
-    if (null == jwtVerifier) jwtVerifier = JWT.require(getAlgorithm()).build();
+    if (jwtVerifier == null) jwtVerifier = JWT.require(getAlgorithm()).build();
 
     return jwtVerifier;
   }
@@ -262,27 +277,14 @@ public class AccountResource {
     int statusCode;
 
     try {
-      var httpResponse =
-          HttpClient.newHttpClient()
-              .send(
-                  HttpRequest.newBuilder()
-                      .POST(
-                          BodyPublishers.ofString(
-                              "{\"email\": \"" + email + "\", \"password\": \"" + password + "\"}"))
-                      .setHeader("content-type", "application/json")
-                      .uri(
-                          URI.create(
-                              PROPERTIES.getProperty("service.visualization")
-                                  + "/api/account/logIn"))
-                      .build(),
-                  BodyHandlers.ofString());
+      var httpResponse = sendRequest(createHttpRequest(email, password, "logIn"));
 
       statusCode = httpResponse.statusCode();
 
       if (statusCode == Status.OK.getStatusCode()) {
         var jsonObject = new JSONObject(httpResponse.body());
 
-        httpSession.setAttribute("email", jsonObject.getString("email"));
+        httpSession.setAttribute(EMAIL, jsonObject.getString(EMAIL));
         httpSession.setAttribute("firstName", jsonObject.getString("firstName"));
         httpSession.setAttribute("id", jsonObject.getString("id"));
         httpSession.setAttribute("lastName", jsonObject.getString("lastName"));
@@ -303,25 +305,14 @@ public class AccountResource {
 
   private static Optional<ResponseBuilder> noUserRequired(HttpSession httpSession) {
     return Optional.ofNullable(
-        null == httpSession.getAttribute("id") ? null : Response.status(Status.UNAUTHORIZED));
+        httpSession.getAttribute("id") == null ? null : Response.status(Status.UNAUTHORIZED));
   }
 
   private int recover(String email) {
     int statusCode;
 
     try {
-      var httpResponse =
-          HttpClient.newHttpClient()
-              .send(
-                  HttpRequest.newBuilder()
-                      .POST(BodyPublishers.ofString("{\"email\": \"" + email + "\"}"))
-                      .setHeader("content-type", "application/json")
-                      .uri(
-                          URI.create(
-                              PROPERTIES.getProperty("service.visualization")
-                                  + "/api/account/recover"))
-                      .build(),
-                  BodyHandlers.ofString());
+      var httpResponse = sendRequest(createHttpRequest(email, "recover"));
 
       statusCode = httpResponse.statusCode();
 
@@ -329,7 +320,7 @@ public class AccountResource {
         sendEmail(
             "The recover code: "
                 + JWT.create()
-                    .withClaim("email", email)
+                    .withClaim(EMAIL, email)
                     .withExpiresAt(Date.from(Instant.now().plus(1L, ChronoUnit.HOURS)))
                     .sign(getAlgorithm()),
             "Recover",
@@ -360,11 +351,16 @@ public class AccountResource {
     }
   }
 
+  private static HttpResponse<String> sendRequest(HttpRequest httpRequest)
+      throws IOException, InterruptedException {
+    return HttpClient.newHttpClient().send(httpRequest, BodyHandlers.ofString());
+  }
+
   private int signUp(HttpServletRequest httpServletRequest, JSONObject jsonObject) {
     int statusCode;
 
-    var email = jsonObject.getString("email");
-    var password = jsonObject.getString("password");
+    var email = jsonObject.getString(EMAIL);
+    var password = jsonObject.getString(PASSWORD);
 
     try {
       var httpResponse =
@@ -379,9 +375,9 @@ public class AccountResource {
                                   + jsonObject.getString("firstName")
                                   + "\", \"lastName\": \""
                                   + jsonObject.getString("lastName")
-                                  + "\", \"password\": \""
-                                  + password
-                                  + "\"}"))
+                                  + "\", "
+                                  + String.format(JSON_PASSWORD, password)
+                                  + '}'))
                       .setHeader("content-type", "application/json")
                       .uri(
                           URI.create(
@@ -399,7 +395,7 @@ public class AccountResource {
                 + ':'
                 + httpServletRequest.getServerPort()
                 + "/api/account/verify/"
-                + JWT.create().withClaim("email", email).sign(getAlgorithm()),
+                + JWT.create().withClaim(EMAIL, email).sign(getAlgorithm()),
             "Verify",
             email);
 
@@ -417,18 +413,7 @@ public class AccountResource {
     String message = null;
 
     try {
-      var httpResponse =
-          HttpClient.newHttpClient()
-              .send(
-                  HttpRequest.newBuilder()
-                      .POST(BodyPublishers.ofString("{\"email\": \"" + email + "\"}"))
-                      .setHeader("content-type", "application/json")
-                      .uri(
-                          URI.create(
-                              PROPERTIES.getProperty("service.visualization")
-                                  + "/api/account/verify"))
-                      .build(),
-                  BodyHandlers.ofString());
+      var httpResponse = sendRequest(createHttpRequest(email, "verify"));
 
       var statusCode = httpResponse.statusCode();
 
