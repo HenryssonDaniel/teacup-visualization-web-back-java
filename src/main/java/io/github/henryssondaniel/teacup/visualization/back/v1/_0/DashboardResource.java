@@ -31,13 +31,13 @@ import org.json.JSONObject;
  * @since 1.0
  */
 @Path("{a:v1/dashboard|v1.0/dashboard|dashboard}")
-public enum DashboardResource {
-  ;
-
+public class DashboardResource {
   private static final String ERROR_SESSION = "Could not get sessions";
   private static final Logger LOGGER = Logger.getLogger(DashboardResource.class.getName());
   private static final Properties PROPERTIES = Factory.getProperties();
   private static final String SESSIONS = "sessions";
+
+  private HttpClient httpClient;
 
   /**
    * Dashboard.
@@ -47,14 +47,14 @@ public enum DashboardResource {
    */
   @GET
   @Produces(MediaType.APPLICATION_JSON)
-  public static Response dashboard(@Context HttpServletRequest httpServletRequest) {
+  public Response dashboard(@Context HttpServletRequest httpServletRequest) {
     LOGGER.log(Level.FINE, "Dashboard");
 
     var httpSession = httpServletRequest.getSession();
     return allowCredentials(userRequired(httpSession).orElseGet(() -> getDashBoard(httpSession)));
   }
 
-  private static ResponseBuilder getDashBoard(HttpSession httpSession) {
+  private ResponseBuilder getDashBoard(HttpSession httpSession) {
     var jsonObject =
         new JSONObject(
             "{\"account\": {\"firstName\": \""
@@ -78,9 +78,15 @@ public enum DashboardResource {
         .type(MediaType.APPLICATION_JSON);
   }
 
-  private static int getSessions(JSONObject jsonObject) throws IOException, InterruptedException {
+  private HttpClient getHttpClient() {
+    if (httpClient == null) httpClient = HttpClient.newHttpClient();
+
+    return httpClient;
+  }
+
+  private int getSessions(JSONObject jsonObject) throws IOException, InterruptedException {
     var httpResponse =
-        HttpClient.newHttpClient()
+        getHttpClient()
             .send(
                 HttpRequest.newBuilder()
                     .uri(
