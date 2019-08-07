@@ -224,7 +224,7 @@ public class AccountResource {
                           BodyPublishers.ofString(
                               "{\"authorized\": false, \"email\": \""
                                   + email
-                                  + "\", \"password\": "
+                                  + "\", \"password\": \""
                                   + password
                                   + "\"}"))
                       .setHeader("content-type", "application/json")
