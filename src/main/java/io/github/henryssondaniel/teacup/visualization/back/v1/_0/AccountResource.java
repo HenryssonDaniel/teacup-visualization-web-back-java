@@ -2,6 +2,7 @@ package io.github.henryssondaniel.teacup.visualization.back.v1._0;
 
 import static io.github.henryssondaniel.teacup.visualization.back.v1._0.Utils.allowCredentials;
 import static io.github.henryssondaniel.teacup.visualization.back.v1._0.Utils.userRequired;
+import static java.lang.String.join;
 import static javax.ws.rs.core.Response.Status.FORBIDDEN;
 
 import com.auth0.jwt.JWT;
@@ -10,12 +11,12 @@ import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.JWTVerifier;
 import io.github.henryssondaniel.teacup.core.configuration.Factory;
 import java.io.IOException;
-import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
+import java.nio.file.Paths;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
@@ -52,15 +53,16 @@ import org.json.JSONObject;
  */
 @Path("{a:v1/account|v1.0/account|account}")
 public class AccountResource {
+  private static final String AUTHORIZED = "authorized";
+  private static final CharSequence DELIMITER = ", ";
   private static final String EMAIL = "email";
   private static final String FIRST_NAME = "firstName";
   private static final String ID = "id";
-  private static final String JSON_EMAIL = "\"email\": \"%s\"";
-  private static final String JSON_PASSWORD = "\"password\": \"%s\"";
   private static final String LAST_NAME = "lastName";
   private static final Logger LOGGER = Logger.getLogger(AccountResource.class.getName());
   private static final String LOG_IN = "logIn";
   private static final String PASSWORD = "password";
+  private static final String PATH = "api/account";
   private static final Properties PROPERTIES = Factory.getProperties();
   private static final String RECOVER = "recover";
   private static final String TOKEN = "token";
@@ -75,7 +77,7 @@ public class AccountResource {
    * @since 1.0
    */
   @GET
-  @Path("authorized")
+  @Path(AUTHORIZED)
   @Produces(MediaType.APPLICATION_JSON)
   public static Response authorized(@Context HttpServletRequest httpServletRequest) {
     LOGGER.log(Level.FINE, "Authorized");
@@ -201,14 +203,6 @@ public class AccountResource {
     return message;
   }
 
-  private static HttpRequest buildHttpRequest(String body, String path) {
-    return HttpRequest.newBuilder()
-        .POST(BodyPublishers.ofString('{' + body + '}'))
-        .setHeader("content-type", "application/json")
-        .uri(URI.create(PROPERTIES.getProperty("service.visualization") + path))
-        .build();
-  }
-
   private ResponseBuilder changePassword(HttpSession httpSession, JSONObject jsonObject) {
     ResponseBuilder responseBuilder;
 
@@ -231,7 +225,15 @@ public class AccountResource {
     int statusCode;
 
     try {
-      var httpResponse = sendRequest(createHttpRequest(false, email, password, "changePassword"));
+      var httpResponse =
+          sendRequest(
+              createHttpRequest(
+                  join(
+                      DELIMITER,
+                      createKeyValue(AUTHORIZED, false),
+                      createJson(EMAIL, email),
+                      createJson(PASSWORD, password)),
+                  "changePassword"));
 
       statusCode = httpResponse.statusCode();
 
@@ -244,25 +246,24 @@ public class AccountResource {
     return statusCode;
   }
 
-  private static HttpRequest createHttpRequest(String email, String path) {
-    return createHttpRequest(email, null, path);
+  private static HttpRequest createHttpRequest(String body, String path) {
+    return HttpRequest.newBuilder()
+        .POST(BodyPublishers.ofString('{' + body + '}'))
+        .setHeader("content-type", "application/json")
+        .uri(
+            Paths.get(PROPERTIES.getProperty("service.visualization"))
+                .resolve(PATH)
+                .resolve(path)
+                .toUri())
+        .build();
   }
 
-  private static HttpRequest createHttpRequest(String email, String password, String path) {
-    return createHttpRequest(null, email, password, path);
+  private static String createJson(String key, String value) {
+    return createKeyValue(key, '"' + value + '"');
   }
 
-  private static HttpRequest createHttpRequest(
-      Boolean authorized, String email, String password, String path) {
-    var body = new StringBuilder(0);
-
-    if (authorized != null) body.append("\"authorized\": ").append(authorized).append(", ");
-
-    body.append(String.format(JSON_EMAIL, email));
-
-    if (password != null) body.append(", ").append(String.format(JSON_PASSWORD, password));
-
-    return buildHttpRequest(body.toString(), "/api/account/" + path);
+  private static String createKeyValue(String key, Object value) {
+    return '"' + key + "\": " + value;
   }
 
   private Algorithm getAlgorithm() {
@@ -281,7 +282,11 @@ public class AccountResource {
     int statusCode;
 
     try {
-      var httpResponse = sendRequest(createHttpRequest(email, password, LOG_IN));
+      var httpResponse =
+          sendRequest(
+              createHttpRequest(
+                  join(DELIMITER, createJson(EMAIL, email), createJson(PASSWORD, password)),
+                  LOG_IN));
 
       statusCode = httpResponse.statusCode();
 
@@ -316,7 +321,7 @@ public class AccountResource {
     int statusCode;
 
     try {
-      var httpResponse = sendRequest(createHttpRequest(email, RECOVER));
+      var httpResponse = sendRequest(createHttpRequest(createJson(EMAIL, email), RECOVER));
 
       statusCode = httpResponse.statusCode();
 
@@ -370,24 +375,14 @@ public class AccountResource {
       var httpResponse =
           HttpClient.newHttpClient()
               .send(
-                  HttpRequest.newBuilder()
-                      .POST(
-                          BodyPublishers.ofString(
-                              "{\"email\": \""
-                                  + email
-                                  + "\", \"firstName\": \""
-                                  + jsonObject.getString(FIRST_NAME)
-                                  + "\", \"lastName\": \""
-                                  + jsonObject.getString(LAST_NAME)
-                                  + "\", "
-                                  + String.format(JSON_PASSWORD, password)
-                                  + '}'))
-                      .setHeader("content-type", "application/json")
-                      .uri(
-                          URI.create(
-                              PROPERTIES.getProperty("service.visualization")
-                                  + "/api/account/signUp"))
-                      .build(),
+                  createHttpRequest(
+                      join(
+                          DELIMITER,
+                          createJson(EMAIL, email),
+                          createJson(FIRST_NAME, jsonObject.getString(FIRST_NAME)),
+                          createJson(LAST_NAME, jsonObject.getString(LAST_NAME)),
+                          createJson(PASSWORD, password)),
+                      "signUp"),
                   BodyHandlers.ofString());
 
       statusCode = httpResponse.statusCode();
@@ -398,8 +393,9 @@ public class AccountResource {
                 + httpServletRequest.getServerName()
                 + ':'
                 + httpServletRequest.getServerPort()
-                + "/api/account/verify/"
-                + JWT.create().withClaim(EMAIL, email).sign(getAlgorithm()),
+                + '/'
+                + Paths.get(
+                    PATH, "verify", JWT.create().withClaim(EMAIL, email).sign(getAlgorithm())),
             "Verify",
             email);
 
@@ -417,7 +413,7 @@ public class AccountResource {
     String message = null;
 
     try {
-      var httpResponse = sendRequest(createHttpRequest(email, "verify"));
+      var httpResponse = sendRequest(createHttpRequest(createJson(EMAIL, email), "verify"));
 
       var statusCode = httpResponse.statusCode();
 
