@@ -56,7 +56,7 @@ public class DashboardResource {
                 + httpSession.getAttribute("firstName")
                 + "\", \"lastName\": \""
                 + httpSession.getAttribute("lastName")
-                + "}}");
+                + "\"}}");
 
     int statusCode;
     try {
