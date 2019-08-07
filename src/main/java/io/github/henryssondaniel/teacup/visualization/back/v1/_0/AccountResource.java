@@ -54,6 +54,7 @@ import org.json.JSONObject;
 @Path("{a:v1/account|v1.0/account|account}")
 public class AccountResource {
   private static final String AUTHORIZED = "authorized";
+  private static final String CHANGE_PASSWORD = "changePassword";
   private static final CharSequence DELIMITER = ", ";
   private static final String EMAIL = "email";
   private static final String FIRST_NAME = "firstName";
@@ -92,7 +93,7 @@ public class AccountResource {
    * @since 1.0
    */
   @POST
-  @Path("changePassword")
+  @Path(CHANGE_PASSWORD)
   @Produces(MediaType.APPLICATION_JSON)
   public Response changePassword(String data, @Context HttpServletRequest httpServletRequest) {
     LOGGER.log(Level.FINE, "Change password");
@@ -225,17 +226,16 @@ public class AccountResource {
     int statusCode;
 
     try {
-      var httpResponse =
+      statusCode =
           sendRequest(
-              createHttpRequest(
-                  join(
-                      DELIMITER,
-                      createKeyValue(AUTHORIZED, false),
-                      createJson(EMAIL, email),
-                      createJson(PASSWORD, password)),
-                  "changePassword"));
-
-      statusCode = httpResponse.statusCode();
+                  createHttpRequest(
+                      join(
+                          DELIMITER,
+                          createKeyValue(AUTHORIZED, false),
+                          createJson(EMAIL, email),
+                          createJson(PASSWORD, password)),
+                      CHANGE_PASSWORD))
+              .statusCode();
 
       if (statusCode == Status.OK.getStatusCode()) logIn(email, password, httpSession);
     } catch (IOException | InterruptedException e) {
@@ -321,9 +321,7 @@ public class AccountResource {
     int statusCode;
 
     try {
-      var httpResponse = sendRequest(createHttpRequest(createJson(EMAIL, email), RECOVER));
-
-      statusCode = httpResponse.statusCode();
+      statusCode = sendRequest(createHttpRequest(createJson(EMAIL, email), RECOVER)).statusCode();
 
       if (statusCode == Status.OK.getStatusCode())
         sendEmail(
@@ -372,9 +370,8 @@ public class AccountResource {
     var password = jsonObject.getString(PASSWORD);
 
     try {
-      var httpResponse =
-          HttpClient.newHttpClient()
-              .send(
+      statusCode =
+          sendRequest(
                   createHttpRequest(
                       join(
                           DELIMITER,
@@ -382,10 +379,8 @@ public class AccountResource {
                           createJson(FIRST_NAME, jsonObject.getString(FIRST_NAME)),
                           createJson(LAST_NAME, jsonObject.getString(LAST_NAME)),
                           createJson(PASSWORD, password)),
-                      "signUp"),
-                  BodyHandlers.ofString());
-
-      statusCode = httpResponse.statusCode();
+                      "signUp"))
+              .statusCode();
 
       if (statusCode == Status.OK.getStatusCode()) {
         sendEmail(
@@ -413,9 +408,8 @@ public class AccountResource {
     String message = null;
 
     try {
-      var httpResponse = sendRequest(createHttpRequest(createJson(EMAIL, email), "verify"));
-
-      var statusCode = httpResponse.statusCode();
+      var statusCode =
+          sendRequest(createHttpRequest(createJson(EMAIL, email), "verify")).statusCode();
 
       if (statusCode == Status.OK.getStatusCode()) message = "The account have been verified";
     } catch (IOException | InterruptedException e) {
