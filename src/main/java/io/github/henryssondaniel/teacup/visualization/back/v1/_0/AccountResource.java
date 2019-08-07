@@ -57,6 +57,11 @@ public class AccountResource {
   private static final String CHANGE_PASSWORD = "changePassword";
   private static final CharSequence DELIMITER = ", ";
   private static final String EMAIL = "email";
+  private static final String ERROR_CHANGE_PASSWORD = "Could not change the password";
+  private static final String ERROR_LOG_IN = "Could not log in";
+  private static final String ERROR_RECOVER = "Could not recover the account";
+  private static final String ERROR_SIGN_UP = "Could not sign up";
+  private static final String ERROR_VERIFY = "Could not verify the account";
   private static final String FIRST_NAME = "firstName";
   private static final String ID = "id";
   private static final String LAST_NAME = "lastName";
@@ -238,9 +243,10 @@ public class AccountResource {
               .statusCode();
 
       if (statusCode == Status.OK.getStatusCode()) logIn(email, httpSession, password);
-    } catch (IOException | InterruptedException e) {
-      LOGGER.log(Level.SEVERE, "Could not change the password", e);
-      statusCode = Status.INTERNAL_SERVER_ERROR.getStatusCode();
+    } catch (IOException e) {
+      statusCode = handleException(ERROR_CHANGE_PASSWORD, e);
+    } catch (InterruptedException e) {
+      statusCode = handleInterruptedException(ERROR_CHANGE_PASSWORD, e);
     }
 
     return statusCode;
@@ -278,6 +284,17 @@ public class AccountResource {
     return jwtVerifier;
   }
 
+  private static int handleException(String message, Throwable throwable) {
+    LOGGER.log(Level.SEVERE, message, throwable);
+    return Status.INTERNAL_SERVER_ERROR.getStatusCode();
+  }
+
+  private static int handleInterruptedException(String message, Throwable throwable) {
+    var statusCode = handleException(message, throwable);
+    Thread.currentThread().interrupt();
+    return statusCode;
+  }
+
   private static int logIn(String email, HttpSession httpSession, String password) {
     int statusCode;
 
@@ -298,9 +315,10 @@ public class AccountResource {
         httpSession.setAttribute(ID, jsonObject.getString(ID));
         httpSession.setAttribute(LAST_NAME, jsonObject.getString(LAST_NAME));
       }
-    } catch (IOException | InterruptedException e) {
-      LOGGER.log(Level.SEVERE, "Could not log in", e);
-      statusCode = Status.INTERNAL_SERVER_ERROR.getStatusCode();
+    } catch (IOException e) {
+      statusCode = handleException(ERROR_LOG_IN, e);
+    } catch (InterruptedException e) {
+      statusCode = handleInterruptedException(ERROR_LOG_IN, e);
     }
 
     return statusCode;
@@ -332,9 +350,10 @@ public class AccountResource {
                     .sign(getAlgorithm()),
             "Recover",
             email);
-    } catch (IOException | InterruptedException e) {
-      LOGGER.log(Level.SEVERE, "Could not recover the account", e);
-      statusCode = Status.INTERNAL_SERVER_ERROR.getStatusCode();
+    } catch (IOException e) {
+      statusCode = handleException(ERROR_RECOVER, e);
+    } catch (InterruptedException e) {
+      statusCode = handleInterruptedException(ERROR_RECOVER, e);
     }
 
     return statusCode;
@@ -396,9 +415,10 @@ public class AccountResource {
 
         statusCode = logIn(email, httpServletRequest.getSession(), password);
       }
-    } catch (IOException | InterruptedException e) {
-      LOGGER.log(Level.SEVERE, "Could not sign up", e);
-      statusCode = Status.INTERNAL_SERVER_ERROR.getStatusCode();
+    } catch (IOException e) {
+      statusCode = handleException(ERROR_SIGN_UP, e);
+    } catch (InterruptedException e) {
+      statusCode = handleInterruptedException(ERROR_SIGN_UP, e);
     }
 
     return statusCode;
@@ -412,8 +432,11 @@ public class AccountResource {
           sendRequest(createHttpRequest(createJson(EMAIL, email), "verify")).statusCode();
 
       if (statusCode == Status.OK.getStatusCode()) message = "The account have been verified";
-    } catch (IOException | InterruptedException e) {
-      LOGGER.log(Level.SEVERE, "Could not verify the account", e);
+    } catch (IOException e) {
+      LOGGER.log(Level.SEVERE, ERROR_VERIFY, e);
+    } catch (InterruptedException e) {
+      LOGGER.log(Level.SEVERE, ERROR_VERIFY, e);
+      Thread.currentThread().interrupt();
     }
 
     return Objects.requireNonNullElse(
