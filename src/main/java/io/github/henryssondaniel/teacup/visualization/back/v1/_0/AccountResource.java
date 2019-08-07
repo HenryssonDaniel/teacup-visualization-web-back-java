@@ -246,7 +246,8 @@ public class AccountResource {
     } catch (IOException e) {
       statusCode = handleException(ERROR_CHANGE_PASSWORD, e);
     } catch (InterruptedException e) {
-      statusCode = handleInterruptedException(ERROR_CHANGE_PASSWORD, e);
+      statusCode = handleException(ERROR_CHANGE_PASSWORD, e);
+      Thread.currentThread().interrupt();
     }
 
     return statusCode;
@@ -289,12 +290,6 @@ public class AccountResource {
     return Status.INTERNAL_SERVER_ERROR.getStatusCode();
   }
 
-  private static int handleInterruptedException(String message, Throwable throwable) {
-    var statusCode = handleException(message, throwable);
-    Thread.currentThread().interrupt();
-    return statusCode;
-  }
-
   private static int logIn(String email, HttpSession httpSession, String password) {
     int statusCode;
 
@@ -318,7 +313,8 @@ public class AccountResource {
     } catch (IOException e) {
       statusCode = handleException(ERROR_LOG_IN, e);
     } catch (InterruptedException e) {
-      statusCode = handleInterruptedException(ERROR_LOG_IN, e);
+      statusCode = handleException(ERROR_LOG_IN, e);
+      Thread.currentThread().interrupt();
     }
 
     return statusCode;
@@ -353,7 +349,8 @@ public class AccountResource {
     } catch (IOException e) {
       statusCode = handleException(ERROR_RECOVER, e);
     } catch (InterruptedException e) {
-      statusCode = handleInterruptedException(ERROR_RECOVER, e);
+      statusCode = handleException(ERROR_RECOVER, e);
+      Thread.currentThread().interrupt();
     }
 
     return statusCode;
@@ -418,7 +415,8 @@ public class AccountResource {
     } catch (IOException e) {
       statusCode = handleException(ERROR_SIGN_UP, e);
     } catch (InterruptedException e) {
-      statusCode = handleInterruptedException(ERROR_SIGN_UP, e);
+      statusCode = handleException(ERROR_SIGN_UP, e);
+      Thread.currentThread().interrupt();
     }
 
     return statusCode;
