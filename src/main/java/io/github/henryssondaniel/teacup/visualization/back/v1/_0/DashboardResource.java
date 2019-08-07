@@ -1,6 +1,7 @@
 package io.github.henryssondaniel.teacup.visualization.back.v1._0;
 
 import static io.github.henryssondaniel.teacup.visualization.back.v1._0.Utils.allowCredentials;
+import static io.github.henryssondaniel.teacup.visualization.back.v1._0.Utils.handleException;
 import static io.github.henryssondaniel.teacup.visualization.back.v1._0.Utils.userRequired;
 
 import io.github.henryssondaniel.teacup.core.configuration.Factory;
@@ -30,9 +31,13 @@ import org.json.JSONObject;
  * @since 1.0
  */
 @Path("{a:v1/dashboard|v1.0/dashboard|dashboard}")
-public class DashboardResource {
+public enum DashboardResource {
+  ;
+
+  private static final String ERROR_SESSION = "Could not get sessions";
   private static final Logger LOGGER = Logger.getLogger(DashboardResource.class.getName());
   private static final Properties PROPERTIES = Factory.getProperties();
+  private static final String SESSIONS = "sessions";
 
   /**
    * Dashboard.
@@ -61,9 +66,11 @@ public class DashboardResource {
     int statusCode;
     try {
       statusCode = getSessions(jsonObject);
-    } catch (IOException | InterruptedException e) {
-      LOGGER.log(Level.SEVERE, "Could not get sessions", e);
-      statusCode = Status.INTERNAL_SERVER_ERROR.getStatusCode();
+    } catch (IOException e) {
+      statusCode = handleException(ERROR_SESSION, e);
+    } catch (InterruptedException e) {
+      statusCode = handleException(ERROR_SESSION, e);
+      Thread.currentThread().interrupt();
     }
 
     return Response.status(statusCode)
@@ -85,7 +92,7 @@ public class DashboardResource {
     var statusCode = httpResponse.statusCode();
 
     if (statusCode == Status.OK.getStatusCode())
-      jsonObject.put("sessions", new JSONObject(httpResponse.body()).getJSONArray("sessions"));
+      jsonObject.put(SESSIONS, new JSONObject(httpResponse.body()).getJSONArray(SESSIONS));
 
     return statusCode;
   }

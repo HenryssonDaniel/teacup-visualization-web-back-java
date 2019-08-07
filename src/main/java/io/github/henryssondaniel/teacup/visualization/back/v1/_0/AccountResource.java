@@ -1,6 +1,7 @@
 package io.github.henryssondaniel.teacup.visualization.back.v1._0;
 
 import static io.github.henryssondaniel.teacup.visualization.back.v1._0.Utils.allowCredentials;
+import static io.github.henryssondaniel.teacup.visualization.back.v1._0.Utils.handleException;
 import static io.github.henryssondaniel.teacup.visualization.back.v1._0.Utils.userRequired;
 import static java.lang.String.join;
 import static javax.ws.rs.core.Response.Status.FORBIDDEN;
@@ -281,11 +282,6 @@ public class AccountResource {
     if (jwtVerifier == null) jwtVerifier = JWT.require(getAlgorithm()).build();
 
     return jwtVerifier;
-  }
-
-  private static int handleException(String message, Throwable throwable) {
-    LOGGER.log(Level.SEVERE, message, throwable);
-    return Status.INTERNAL_SERVER_ERROR.getStatusCode();
   }
 
   private static int logIn(String email, HttpSession httpSession, String password) {
