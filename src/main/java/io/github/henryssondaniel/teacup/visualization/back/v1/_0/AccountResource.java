@@ -52,13 +52,17 @@ import org.json.JSONObject;
  */
 @Path("{a:v1/account|v1.0/account|account}")
 public class AccountResource {
-
   private static final String EMAIL = "email";
+  private static final String FIRST_NAME = "firstName";
+  private static final String ID = "id";
   private static final String JSON_EMAIL = "\"email\": \"%s\"";
   private static final String JSON_PASSWORD = "\"password\": \"%s\"";
+  private static final String LAST_NAME = "lastName";
   private static final Logger LOGGER = Logger.getLogger(AccountResource.class.getName());
+  private static final String LOG_IN = "logIn";
   private static final String PASSWORD = "password";
   private static final Properties PROPERTIES = Factory.getProperties();
+  private static final String RECOVER = "recover";
   private static final String TOKEN = "token";
 
   private Algorithm algorithm;
@@ -104,7 +108,7 @@ public class AccountResource {
    * @since 1.0
    */
   @POST
-  @Path("logIn")
+  @Path(LOG_IN)
   @Produces(MediaType.APPLICATION_JSON)
   public static Response logIn(String data, @Context HttpServletRequest httpServletRequest) {
     LOGGER.log(Level.FINE, "Log in");
@@ -146,7 +150,7 @@ public class AccountResource {
    * @since 1.0
    */
   @POST
-  @Path("recover")
+  @Path(RECOVER)
   @Produces(MediaType.APPLICATION_JSON)
   public Response recover(String data, @Context HttpServletRequest httpServletRequest) {
     LOGGER.log(Level.FINE, "Recover");
@@ -277,7 +281,7 @@ public class AccountResource {
     int statusCode;
 
     try {
-      var httpResponse = sendRequest(createHttpRequest(email, password, "logIn"));
+      var httpResponse = sendRequest(createHttpRequest(email, password, LOG_IN));
 
       statusCode = httpResponse.statusCode();
 
@@ -285,9 +289,9 @@ public class AccountResource {
         var jsonObject = new JSONObject(httpResponse.body());
 
         httpSession.setAttribute(EMAIL, jsonObject.getString(EMAIL));
-        httpSession.setAttribute("firstName", jsonObject.getString("firstName"));
-        httpSession.setAttribute("id", jsonObject.getString("id"));
-        httpSession.setAttribute("lastName", jsonObject.getString("lastName"));
+        httpSession.setAttribute(FIRST_NAME, jsonObject.getString(FIRST_NAME));
+        httpSession.setAttribute(ID, jsonObject.getString(ID));
+        httpSession.setAttribute(LAST_NAME, jsonObject.getString(LAST_NAME));
       }
     } catch (IOException | InterruptedException e) {
       LOGGER.log(Level.SEVERE, "Could not log in", e);
@@ -298,21 +302,21 @@ public class AccountResource {
   }
 
   private static ResponseBuilder logOut(HttpSession httpSession) {
-    httpSession.removeAttribute("id");
+    httpSession.removeAttribute(ID);
 
     return Response.ok();
   }
 
   private static Optional<ResponseBuilder> noUserRequired(HttpSession httpSession) {
     return Optional.ofNullable(
-        httpSession.getAttribute("id") == null ? null : Response.status(Status.UNAUTHORIZED));
+        httpSession.getAttribute(ID) == null ? null : Response.status(Status.UNAUTHORIZED));
   }
 
   private int recover(String email) {
     int statusCode;
 
     try {
-      var httpResponse = sendRequest(createHttpRequest(email, "recover"));
+      var httpResponse = sendRequest(createHttpRequest(email, RECOVER));
 
       statusCode = httpResponse.statusCode();
 
@@ -372,9 +376,9 @@ public class AccountResource {
                               "{\"email\": \""
                                   + email
                                   + "\", \"firstName\": \""
-                                  + jsonObject.getString("firstName")
+                                  + jsonObject.getString(FIRST_NAME)
                                   + "\", \"lastName\": \""
-                                  + jsonObject.getString("lastName")
+                                  + jsonObject.getString(LAST_NAME)
                                   + "\", "
                                   + String.format(JSON_PASSWORD, password)
                                   + '}'))
