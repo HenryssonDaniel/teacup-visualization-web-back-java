@@ -69,7 +69,7 @@ public class AccountResource {
   private static final Logger LOGGER = Logger.getLogger(AccountResource.class.getName());
   private static final String LOG_IN = "logIn";
   private static final String PATH = "api/account/";
-  private static final Properties PROPERTIES = Factory.getProperties();
+  private static final Properties PROPERTIES_CORE = Factory.getProperties();
   private static final String RECOVER = "recover";
   private static final String SECRET = "password";
   private static final String TOKEN = "token";
@@ -81,7 +81,7 @@ public class AccountResource {
   private JWTVerifier jwtVerifier;
 
   public AccountResource() {
-    this(HttpClient.newHttpClient(), null, PROPERTIES);
+    this(HttpClient.newHttpClient(), null, PROPERTIES_CORE);
   }
 
   AccountResource(HttpClient httpClient, JWTVerifier jwtVerifier, Properties properties) {
