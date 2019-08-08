@@ -13,10 +13,8 @@ import java.net.URI;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.Date;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -43,31 +41,19 @@ class CorsFilterTest {
     var containerRequestContext = mock(ContainerRequestContext.class);
     when(containerRequestContext.getHeaderString(ORIGIN)).thenReturn(HEADER_STRING);
 
-    MultivaluedMap<String, Object> multivaluedMap = new MultivaluedHashMap<>();
-
-    ContainerResponseContext containerResponseContext = mock(TestContainerResponseContext.class);
-    when(containerResponseContext.getHeaders()).thenReturn(multivaluedMap);
+    ContainerResponseContext containerResponseContext = new TestContainerResponseContextImpl();
 
     new CorsFilter().filter(containerRequestContext, containerResponseContext);
 
-    verifyFilter(containerRequestContext, containerResponseContext, multivaluedMap.entrySet());
-  }
-
-  private static void verifyFilter(
-      ContainerRequestContext containerRequestContext,
-      ContainerResponseContext containerResponseContext,
-      Iterable<? extends Entry<String, List<Object>>> entrySet) {
-    assertThat(entrySet).hasSize(1);
-
-    var entry = entrySet.iterator().next();
-    assertThat(entry.getKey()).isEqualTo("Access-Control-Allow-Origin");
-    assertThat(entry.getValue()).containsExactly(HEADER_STRING);
+    assertThat(((TestContainerResponseContext) containerResponseContext).getCount()).isOne();
 
     verify(containerRequestContext).getHeaderString(ORIGIN);
     verifyNoMoreInteractions(containerRequestContext);
+  }
 
-    verify(containerResponseContext).getHeaders();
-    verifyNoMoreInteractions(containerResponseContext);
+  @FunctionalInterface
+  private interface TestContainerResponseContext {
+    int getCount();
   }
 
   private static class TestBuilder implements Builder {
@@ -152,13 +138,15 @@ class CorsFilterTest {
     }
   }
 
-  private static class TestContainerResponseContext implements ContainerResponseContext {
+  private static class TestContainerResponseContextImpl
+      implements ContainerResponseContext, TestContainerResponseContext {
     private static final Annotation[] ANNOTATIONS = new Annotation[0];
     private static final Logger LOGGER =
-        Logger.getLogger(TestContainerResponseContext.class.getName());
+        Logger.getLogger(TestContainerResponseContextImpl.class.getName());
 
     private final MultivaluedMap<String, Object> multivaluedMap = new MultivaluedHashMap<>();
     private final MultivaluedMap<String, String> multivaluedMapString = new MultivaluedHashMap<>();
+    private int count;
 
     @Override
     public Set<String> getAllowedMethods() {
@@ -170,6 +158,11 @@ class CorsFilterTest {
     public Map<String, NewCookie> getCookies() {
       LOGGER.log(Level.FINE, "Get cookies");
       return Collections.emptyMap();
+    }
+
+    @Override
+    public int getCount() {
+      return count;
     }
 
     @Override
@@ -224,10 +217,9 @@ class CorsFilterTest {
     public MultivaluedMap<String, Object> getHeaders() {
       LOGGER.log(Level.FINE, "Get headers");
 
-      MultivaluedMap<String, Object> map = new MultivaluedHashMap<>();
-      map.putAll(multivaluedMap);
+      count++;
 
-      return map;
+      return new MultivaluedHashMap<>(multivaluedMap);
     }
 
     @Override
