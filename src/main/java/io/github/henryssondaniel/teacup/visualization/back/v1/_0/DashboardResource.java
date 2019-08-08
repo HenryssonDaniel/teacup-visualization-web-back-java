@@ -37,7 +37,24 @@ public class DashboardResource {
   private static final Properties PROPERTIES = Factory.getProperties();
   private static final String SESSIONS = "sessions";
 
-  private HttpClient httpClient;
+  private final HttpClient httpClient;
+  private final URI uri;
+
+  /**
+   * Constructor.
+   *
+   * @since 1.0
+   */
+  public DashboardResource() {
+    this(
+        HttpClient.newHttpClient(),
+        URI.create(PROPERTIES.getProperty("service.report") + "/api/session/summary"));
+  }
+
+  DashboardResource(HttpClient httpClient, URI uri) {
+    this.httpClient = httpClient;
+    this.uri = uri;
+  }
 
   /**
    * Dashboard.
@@ -78,22 +95,9 @@ public class DashboardResource {
         .type(MediaType.APPLICATION_JSON);
   }
 
-  private HttpClient getHttpClient() {
-    if (httpClient == null) httpClient = HttpClient.newHttpClient();
-
-    return httpClient;
-  }
-
   private int getSessions(JSONObject jsonObject) throws IOException, InterruptedException {
     var httpResponse =
-        getHttpClient()
-            .send(
-                HttpRequest.newBuilder()
-                    .uri(
-                        URI.create(
-                            PROPERTIES.getProperty("service.report") + "/api/session/summary"))
-                    .build(),
-                BodyHandlers.ofString());
+        httpClient.send(HttpRequest.newBuilder().uri(uri).build(), BodyHandlers.ofString());
 
     var statusCode = httpResponse.statusCode();
 
