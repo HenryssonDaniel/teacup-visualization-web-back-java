@@ -74,8 +74,21 @@ public class AccountResource {
   private static final String SECRET = "password";
   private static final String TOKEN = "token";
 
+  private final HttpClient httpClient;
+  private final Properties properties;
+
   private Algorithm algorithm;
   private JWTVerifier jwtVerifier;
+
+  public AccountResource() {
+    this(HttpClient.newHttpClient(), null, PROPERTIES);
+  }
+
+  AccountResource(HttpClient httpClient, JWTVerifier jwtVerifier, Properties properties) {
+    this.httpClient = httpClient;
+    this.jwtVerifier = jwtVerifier;
+    this.properties = new Properties(properties);
+  }
 
   /**
    * Authorized.
@@ -119,7 +132,7 @@ public class AccountResource {
   @POST
   @Path(LOG_IN)
   @Produces(MediaType.APPLICATION_JSON)
-  public static Response logIn(String data, @Context HttpServletRequest httpServletRequest) {
+  public Response logIn(String data, @Context HttpServletRequest httpServletRequest) {
     LOGGER.log(Level.FINE, "Log in");
 
     var httpSession = httpServletRequest.getSession();
@@ -226,7 +239,7 @@ public class AccountResource {
     return responseBuilder;
   }
 
-  private static int changePasswordRequest(String email, HttpSession httpSession, String password) {
+  private int changePasswordRequest(String email, HttpSession httpSession, String password) {
     int statusCode;
 
     try {
@@ -252,11 +265,11 @@ public class AccountResource {
     return statusCode;
   }
 
-  private static HttpRequest createHttpRequest(String body, String path) {
+  private HttpRequest createHttpRequest(String body, String path) {
     return HttpRequest.newBuilder()
         .POST(BodyPublishers.ofString('{' + body + '}'))
         .setHeader("content-type", "application/json")
-        .uri(URI.create(PROPERTIES.getProperty("service.visualization") + '/' + PATH + path))
+        .uri(URI.create(properties.getProperty("service.visualization") + '/' + PATH + path))
         .build();
   }
 
@@ -269,7 +282,7 @@ public class AccountResource {
   }
 
   private Algorithm getAlgorithm() {
-    if (algorithm == null) algorithm = Algorithm.HMAC256(PROPERTIES.getProperty("secret.key"));
+    if (algorithm == null) algorithm = Algorithm.HMAC256(properties.getProperty("secret.key"));
 
     return algorithm;
   }
@@ -280,7 +293,7 @@ public class AccountResource {
     return jwtVerifier;
   }
 
-  private static int logIn(String email, HttpSession httpSession, String password) {
+  private int logIn(String email, HttpSession httpSession, String password) {
     int statusCode;
 
     try {
@@ -345,14 +358,14 @@ public class AccountResource {
     return statusCode;
   }
 
-  private static void sendEmail(String content, String subject, String to) {
-    var properties = new Properties();
-    properties.setProperty("mail.smtp.host", PROPERTIES.getProperty("smtp.host"));
-    properties.setProperty("mail.smtp.port", PROPERTIES.getProperty("smtp.port"));
+  private void sendEmail(String content, String subject, String to) {
+    var smtpProperties = new Properties();
+    smtpProperties.setProperty("mail.smtp.host", properties.getProperty("smtp.host"));
+    smtpProperties.setProperty("mail.smtp.port", properties.getProperty("smtp.port"));
 
     try {
-      Message message = new MimeMessage(Session.getInstance(properties));
-      message.setFrom(new InternetAddress(PROPERTIES.getProperty("SMTP_FROM")));
+      Message message = new MimeMessage(Session.getInstance(smtpProperties));
+      message.setFrom(new InternetAddress(properties.getProperty("SMTP_FROM")));
       message.setRecipients(RecipientType.TO, InternetAddress.parse(to));
       message.setSubject(subject + " your Teacup account");
       message.setText(content);
@@ -363,9 +376,9 @@ public class AccountResource {
     }
   }
 
-  private static HttpResponse<String> sendRequest(HttpRequest httpRequest)
+  private HttpResponse<String> sendRequest(HttpRequest httpRequest)
       throws IOException, InterruptedException {
-    return HttpClient.newHttpClient().send(httpRequest, BodyHandlers.ofString());
+    return httpClient.send(httpRequest, BodyHandlers.ofString());
   }
 
   private int signUp(HttpServletRequest httpServletRequest, JSONObject jsonObject) {
@@ -412,7 +425,7 @@ public class AccountResource {
     return statusCode;
   }
 
-  private static String verifyAccount(String email) {
+  private String verifyAccount(String email) {
     String message = null;
 
     try {
