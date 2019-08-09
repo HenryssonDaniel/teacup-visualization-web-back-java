@@ -254,7 +254,7 @@ public class AccountResource {
                       CHANGE_SECRET))
               .statusCode();
 
-      if (statusCode == Status.OK.getStatusCode()) logIn(email, httpSession, password);
+      if (statusCode == Status.OK.getStatusCode()) statusCode = logIn(email, httpSession, password);
     } catch (IOException e) {
       statusCode = handleException(ERROR_CHANGE_SECRET, e);
     } catch (InterruptedException e) {

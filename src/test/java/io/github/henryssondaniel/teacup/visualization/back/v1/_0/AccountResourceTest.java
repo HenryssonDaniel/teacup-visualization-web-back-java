@@ -136,6 +136,7 @@ class AccountResourceTest {
     verifyNoMoreInteractions(jwtVerifier);
   }
 
+  @Test
   void changePasswordWhenLogInNotOk() throws IOException, InterruptedException {
     var claim = mock(Claim.class);
     when(claim.asString()).thenReturn("email");
