@@ -122,6 +122,33 @@ class AccountResourceTest {
   }
 
   @Test
+  void changePasswordWhenInterruptedException() throws IOException, InterruptedException {
+    var claim = mock(Claim.class);
+    when(claim.asString()).thenReturn("email");
+
+    var decodedJWT = mock(DecodedJWT.class);
+    when(decodedJWT.getClaim("email")).thenReturn(claim);
+
+    when(jwtVerifier.verify("123")).thenReturn(decodedJWT);
+
+    when(httpResponse.statusCode()).thenReturn(Status.FOUND.getStatusCode());
+
+    when(httpClient.send(any(HttpRequest.class), eq(BodyHandlers.ofString())))
+        .thenThrow(new InterruptedException("test"));
+
+    try (var response =
+        new AccountResource(httpClient, jwtVerifier, properties)
+            .changePassword(
+                "{\"token\": \"123\", \"password\": \"password\"}", httpServletRequest)) {
+      verifyResponse(response, Status.INTERNAL_SERVER_ERROR);
+    }
+
+    verifyMocks();
+    verify(jwtVerifier).verify("123");
+    verifyNoMoreInteractions(jwtVerifier);
+  }
+
+  @Test
   void changePasswordWhenInvalidToken() {
     when(jwtVerifier.verify("123")).thenThrow(new JWTVerificationException("test"));
 
@@ -129,6 +156,89 @@ class AccountResourceTest {
         new AccountResource(httpClient, jwtVerifier, properties)
             .changePassword("{\"token\": \"123\"}", httpServletRequest)) {
       verifyResponse(response, Status.FORBIDDEN);
+    }
+
+    verifyMocks();
+    verify(jwtVerifier).verify("123");
+    verifyNoMoreInteractions(jwtVerifier);
+  }
+
+  @Test
+  void changePasswordWhenIoException() throws IOException, InterruptedException {
+    var claim = mock(Claim.class);
+    when(claim.asString()).thenReturn("email");
+
+    var decodedJWT = mock(DecodedJWT.class);
+    when(decodedJWT.getClaim("email")).thenReturn(claim);
+
+    when(jwtVerifier.verify("123")).thenReturn(decodedJWT);
+
+    when(httpResponse.statusCode()).thenReturn(Status.FOUND.getStatusCode());
+
+    when(httpClient.send(any(HttpRequest.class), eq(BodyHandlers.ofString())))
+        .thenThrow(new IOException("test"));
+
+    try (var response =
+        new AccountResource(httpClient, jwtVerifier, properties)
+            .changePassword(
+                "{\"token\": \"123\", \"password\": \"password\"}", httpServletRequest)) {
+      verifyResponse(response, Status.INTERNAL_SERVER_ERROR);
+    }
+
+    verifyMocks();
+    verify(jwtVerifier).verify("123");
+    verifyNoMoreInteractions(jwtVerifier);
+  }
+
+  @Test
+  void changePasswordWhenLogInInterruptedException() throws IOException, InterruptedException {
+    var claim = mock(Claim.class);
+    when(claim.asString()).thenReturn("email");
+
+    var decodedJWT = mock(DecodedJWT.class);
+    when(decodedJWT.getClaim("email")).thenReturn(claim);
+
+    when(jwtVerifier.verify("123")).thenReturn(decodedJWT);
+
+    when(httpResponse.statusCode()).thenReturn(Status.OK.getStatusCode());
+
+    when(httpClient.send(any(HttpRequest.class), eq(BodyHandlers.ofString())))
+        .thenReturn(httpResponse)
+        .thenThrow(new InterruptedException("test"));
+
+    try (var response =
+        new AccountResource(httpClient, jwtVerifier, properties)
+            .changePassword(
+                "{\"token\": \"123\", \"password\": \"password\"}", httpServletRequest)) {
+      verifyResponse(response, Status.INTERNAL_SERVER_ERROR);
+    }
+
+    verifyMocks();
+    verify(jwtVerifier).verify("123");
+    verifyNoMoreInteractions(jwtVerifier);
+  }
+
+  @Test
+  void changePasswordWhenLogInIoException() throws IOException, InterruptedException {
+    var claim = mock(Claim.class);
+    when(claim.asString()).thenReturn("email");
+
+    var decodedJWT = mock(DecodedJWT.class);
+    when(decodedJWT.getClaim("email")).thenReturn(claim);
+
+    when(jwtVerifier.verify("123")).thenReturn(decodedJWT);
+
+    when(httpResponse.statusCode()).thenReturn(Status.OK.getStatusCode());
+
+    when(httpClient.send(any(HttpRequest.class), eq(BodyHandlers.ofString())))
+        .thenReturn(httpResponse)
+        .thenThrow(new IOException("test"));
+
+    try (var response =
+        new AccountResource(httpClient, jwtVerifier, properties)
+            .changePassword(
+                "{\"token\": \"123\", \"password\": \"password\"}", httpServletRequest)) {
+      verifyResponse(response, Status.INTERNAL_SERVER_ERROR);
     }
 
     verifyMocks();
