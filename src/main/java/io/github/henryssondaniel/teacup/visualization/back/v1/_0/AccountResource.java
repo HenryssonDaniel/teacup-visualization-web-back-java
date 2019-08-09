@@ -365,7 +365,7 @@ public class AccountResource {
 
     try {
       Message message = new MimeMessage(Session.getInstance(smtpProperties));
-      message.setFrom(new InternetAddress(properties.getProperty("SMTP_FROM")));
+      message.setFrom(new InternetAddress(properties.getProperty("smtp.from")));
       message.setRecipients(RecipientType.TO, InternetAddress.parse(to));
       message.setSubject(subject + " your Teacup account");
       message.setText(content);
