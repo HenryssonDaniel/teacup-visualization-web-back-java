@@ -86,6 +86,8 @@ class AccountResourceTest {
     when(decodedJWT.getClaim(EMAIL)).thenReturn(claim);
     when(httpClient.send(any(HttpRequest.class), eq(BodyHandlers.ofString())))
         .thenReturn(httpResponse);
+    when(httpResponse.body())
+        .thenReturn('{' + join(", ", JSON_EMAIL, JSON_FIRST_NAME, JSON_ID, JSON_LAST_NAME) + '}');
     when(httpResponse.statusCode()).thenReturn(Status.OK.getStatusCode());
     when(httpServletRequest.getSession()).thenReturn(httpSession);
     when(jwtVerifier.verify(ID_VALUE)).thenReturn(decodedJWT);
@@ -94,28 +96,17 @@ class AccountResourceTest {
 
   @Test
   void changePassword() throws IOException, InterruptedException {
-    when(httpResponse.body())
-        .thenReturn('{' + join(", ", JSON_EMAIL, JSON_FIRST_NAME, JSON_ID, JSON_LAST_NAME) + '}');
-
     changePassword(Status.OK);
 
     verifyChangePassword(2);
-
-    verify(httpSession).getAttribute(ID);
-    verify(httpSession).setAttribute(EMAIL, EMAIL);
-    verify(httpSession).setAttribute(FIRST_NAME, FIRST_NAME);
-    verify(httpSession).setAttribute(ID, ID_VALUE);
-    verify(httpSession).setAttribute(LAST_NAME, LAST_NAME);
-    verifyNoMoreInteractions(httpSession);
+    verifyHttpSessionLogIn();
   }
 
   @Test
   void changePasswordWhenAuthorized() {
     authorize();
 
-    try (var response = new AccountResource().changePassword("{}", httpServletRequest)) {
-      verifyResponse(response, Status.UNAUTHORIZED);
-    }
+    changePassword(Status.UNAUTHORIZED);
 
     verifyChangePasswordValidationError();
     verifyZeroInteractions(jwtVerifier);
@@ -202,6 +193,56 @@ class AccountResourceTest {
     verifyHttpSessionId();
   }
 
+  @Test
+  void logIn() throws IOException, InterruptedException {
+    logIn(Status.OK);
+
+    verifyLogIn();
+    verifyHttpSessionLogIn();
+  }
+
+  @Test
+  void logInWhenAuthorized() {
+    authorize();
+
+    logIn(Status.UNAUTHORIZED);
+
+    verifyChangePasswordValidationError();
+    verifyZeroInteractions(jwtVerifier);
+  }
+
+  @Test
+  void logInWhenInterruptedException() throws IOException, InterruptedException {
+    when(httpClient.send(any(HttpRequest.class), eq(BodyHandlers.ofString())))
+        .thenThrow(INTERRUPTED_EXCEPTION);
+
+    logIn(Status.INTERNAL_SERVER_ERROR);
+
+    verifyLogIn();
+    verifyHttpSessionId();
+  }
+
+  @Test
+  void logInWhenIoException() throws IOException, InterruptedException {
+    when(httpClient.send(any(HttpRequest.class), eq(BodyHandlers.ofString())))
+        .thenThrow(IO_EXCEPTION);
+
+    logIn(Status.INTERNAL_SERVER_ERROR);
+
+    verifyLogIn();
+    verifyHttpSessionId();
+  }
+
+  @Test
+  void logInWhenNotOk() throws IOException, InterruptedException {
+    when(httpResponse.statusCode()).thenReturn(Status.FOUND.getStatusCode());
+
+    logIn(Status.FOUND);
+
+    verifyLogIn();
+    verifyHttpSessionId();
+  }
+
   private void authorize() {
     when(httpSession.getAttribute(ID)).thenReturn(ID_VALUE);
   }
@@ -217,6 +258,14 @@ class AccountResourceTest {
         new AccountResource(httpClient, jwtVerifier, properties)
             .changePassword(
                 '{' + join(", ", JSON_TOKEN, JSON_PASSWORD) + '}', httpServletRequest)) {
+      verifyResponse(response, statusType);
+    }
+  }
+
+  private void logIn(StatusType statusType) {
+    try (var response =
+        new AccountResource(httpClient, jwtVerifier, properties)
+            .logIn('{' + join(", ", JSON_EMAIL, JSON_PASSWORD) + '}', httpServletRequest)) {
       verifyResponse(response, statusType);
     }
   }
@@ -259,6 +308,25 @@ class AccountResourceTest {
   private void verifyHttpSessionId() {
     verify(httpSession).getAttribute(ID);
     verifyNoMoreInteractions(httpSession);
+  }
+
+  private void verifyHttpSessionLogIn() {
+    verify(httpSession).getAttribute(ID);
+    verify(httpSession).setAttribute(EMAIL, EMAIL);
+    verify(httpSession).setAttribute(FIRST_NAME, FIRST_NAME);
+    verify(httpSession).setAttribute(ID, ID_VALUE);
+    verify(httpSession).setAttribute(LAST_NAME, LAST_NAME);
+    verifyNoMoreInteractions(httpSession);
+  }
+
+  private void verifyLogIn() throws IOException, InterruptedException {
+    verify(httpClient).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
+    verifyNoMoreInteractions(httpClient);
+
+    verifyHttpServletRequest();
+
+    verify(properties).getProperty(SERVICE);
+    verifyNoMoreInteractions(properties);
   }
 
   private static void verifyResponse(Response response, StatusType statusType) {
