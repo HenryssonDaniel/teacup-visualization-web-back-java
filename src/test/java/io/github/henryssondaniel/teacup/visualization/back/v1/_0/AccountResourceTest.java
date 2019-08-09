@@ -80,7 +80,11 @@ class AccountResourceTest {
 
     when(jwtVerifier.verify("123")).thenReturn(decodedJWT);
 
-    when(httpResponse.statusCode()).thenReturn(Status.FOUND.getStatusCode());
+    when(httpResponse.body())
+        .thenReturn(
+            "{\"email\": \"email\", \"firstName\": \"firstName\", \"id\": \"123\", \"lastName\": "
+                + "\"lastName\"}");
+    when(httpResponse.statusCode()).thenReturn(Status.OK.getStatusCode());
 
     when(httpClient.send(any(HttpRequest.class), eq(BodyHandlers.ofString())))
         .thenReturn(httpResponse);
@@ -89,10 +93,19 @@ class AccountResourceTest {
         new AccountResource(httpClient, jwtVerifier, properties)
             .changePassword(
                 "{\"token\": \"123\", \"password\": \"password\"}", httpServletRequest)) {
-      verifyResponse(response, Status.FOUND);
+      verifyResponse(response, Status.OK);
     }
 
-    verifyMocks();
+    verify(httpServletRequest).getSession();
+    verifyNoMoreInteractions(httpServletRequest);
+
+    verify(httpSession).getAttribute("id");
+    verify(httpSession).setAttribute("email", "email");
+    verify(httpSession).setAttribute("firstName", "firstName");
+    verify(httpSession).setAttribute("id", "123");
+    verify(httpSession).setAttribute("lastName", "lastName");
+    verifyNoMoreInteractions(httpSession);
+
     verify(jwtVerifier).verify("123");
     verifyNoMoreInteractions(jwtVerifier);
   }
@@ -116,6 +129,60 @@ class AccountResourceTest {
         new AccountResource(httpClient, jwtVerifier, properties)
             .changePassword("{\"token\": \"123\"}", httpServletRequest)) {
       verifyResponse(response, Status.FORBIDDEN);
+    }
+
+    verifyMocks();
+    verify(jwtVerifier).verify("123");
+    verifyNoMoreInteractions(jwtVerifier);
+  }
+
+  void changePasswordWhenLogInNotOk() throws IOException, InterruptedException {
+    var claim = mock(Claim.class);
+    when(claim.asString()).thenReturn("email");
+
+    var decodedJWT = mock(DecodedJWT.class);
+    when(decodedJWT.getClaim("email")).thenReturn(claim);
+
+    when(jwtVerifier.verify("123")).thenReturn(decodedJWT);
+
+    when(httpResponse.statusCode())
+        .thenReturn(Status.OK.getStatusCode(), Status.FOUND.getStatusCode());
+
+    when(httpClient.send(any(HttpRequest.class), eq(BodyHandlers.ofString())))
+        .thenReturn(httpResponse);
+
+    try (var response =
+        new AccountResource(httpClient, jwtVerifier, properties)
+            .changePassword(
+                "{\"token\": \"123\", \"password\": \"password\"}", httpServletRequest)) {
+      verifyResponse(response, Status.FOUND);
+    }
+
+    verifyMocks();
+    verify(jwtVerifier).verify("123");
+    verifyNoMoreInteractions(jwtVerifier);
+  }
+
+  @Test
+  void changePasswordWhenNotOk() throws IOException, InterruptedException {
+    var claim = mock(Claim.class);
+    when(claim.asString()).thenReturn("email");
+
+    var decodedJWT = mock(DecodedJWT.class);
+    when(decodedJWT.getClaim("email")).thenReturn(claim);
+
+    when(jwtVerifier.verify("123")).thenReturn(decodedJWT);
+
+    when(httpResponse.statusCode()).thenReturn(Status.FOUND.getStatusCode());
+
+    when(httpClient.send(any(HttpRequest.class), eq(BodyHandlers.ofString())))
+        .thenReturn(httpResponse);
+
+    try (var response =
+        new AccountResource(httpClient, jwtVerifier, properties)
+            .changePassword(
+                "{\"token\": \"123\", \"password\": \"password\"}", httpServletRequest)) {
+      verifyResponse(response, Status.FOUND);
     }
 
     verifyMocks();
