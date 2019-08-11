@@ -81,10 +81,12 @@ public class AccountResource {
   private JWTVerifier jwtVerifier;
 
   public AccountResource() {
-    this(HttpClient.newHttpClient(), null, PROPERTIES_CORE);
+    this(null, HttpClient.newHttpClient(), null, PROPERTIES_CORE);
   }
 
-  AccountResource(HttpClient httpClient, JWTVerifier jwtVerifier, Properties properties) {
+  AccountResource(
+      Algorithm algorithm, HttpClient httpClient, JWTVerifier jwtVerifier, Properties properties) {
+    this.algorithm = algorithm;
     this.httpClient = httpClient;
     this.jwtVerifier = jwtVerifier;
     this.properties = new Properties(properties);

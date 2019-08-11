@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
+import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.Claim;
 import com.auth0.jwt.interfaces.DecodedJWT;
@@ -51,6 +52,7 @@ class AccountResourceTest {
   private static final InterruptedException INTERRUPTED_EXCEPTION = new InterruptedException(TEST);
   private static final IOException IO_EXCEPTION = new IOException(TEST);
 
+  private final Algorithm algorithm = mock(Algorithm.class);
   private final Claim claim = mock(Claim.class);
   private final DecodedJWT decodedJWT = mock(DecodedJWT.class);
   private final HttpClient httpClient = mock(HttpClient.class);
@@ -205,7 +207,11 @@ class AccountResourceTest {
   void logInWhenAuthorized() {
     authorize();
 
-    logIn(Status.UNAUTHORIZED);
+    try (var response =
+        new AccountResource()
+            .logIn('{' + join(", ", JSON_EMAIL, JSON_PASSWORD) + '}', httpServletRequest)) {
+      verifyResponse(response, Status.UNAUTHORIZED);
+    }
 
     verifyChangePasswordValidationError();
     verifyZeroInteractions(jwtVerifier);
@@ -255,7 +261,7 @@ class AccountResourceTest {
 
   private void changePassword(StatusType statusType) {
     try (var response =
-        new AccountResource(httpClient, jwtVerifier, properties)
+        new AccountResource(algorithm, httpClient, jwtVerifier, properties)
             .changePassword(
                 '{' + join(", ", JSON_TOKEN, JSON_PASSWORD) + '}', httpServletRequest)) {
       verifyResponse(response, statusType);
@@ -264,7 +270,7 @@ class AccountResourceTest {
 
   private void logIn(StatusType statusType) {
     try (var response =
-        new AccountResource(httpClient, jwtVerifier, properties)
+        new AccountResource(null, httpClient, jwtVerifier, properties)
             .logIn('{' + join(", ", JSON_EMAIL, JSON_PASSWORD) + '}', httpServletRequest)) {
       verifyResponse(response, statusType);
     }
