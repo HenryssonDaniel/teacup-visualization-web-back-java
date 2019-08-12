@@ -249,6 +249,26 @@ class AccountResourceTest {
     verifyHttpSessionId();
   }
 
+  @Test
+  void logOut() {
+    authorize();
+
+    logOut(Status.OK);
+
+    verifyHttpServletRequest();
+
+    verify(httpSession).invalidate();
+    verifyHttpSessionId();
+  }
+
+  @Test
+  void logOutWhenNotAuthorized() {
+    logOut(Status.UNAUTHORIZED);
+
+    verifyHttpServletRequest();
+    verifyHttpSessionId();
+  }
+
   private void authorize() {
     when(httpSession.getAttribute(ID)).thenReturn(ID_VALUE);
   }
@@ -272,6 +292,12 @@ class AccountResourceTest {
     try (var response =
         new AccountResource(null, httpClient, jwtVerifier, properties)
             .logIn('{' + join(", ", JSON_EMAIL, JSON_PASSWORD) + '}', httpServletRequest)) {
+      verifyResponse(response, statusType);
+    }
+  }
+
+  private void logOut(StatusType statusType) {
+    try (var response = AccountResource.logOut(httpServletRequest)) {
       verifyResponse(response, statusType);
     }
   }

@@ -162,7 +162,13 @@ public class AccountResource {
     LOGGER.log(Level.FINE, "Log in");
 
     var httpSession = httpServletRequest.getSession();
-    return allowCredentials(userRequired(httpSession).orElseGet(() -> logOut(httpSession)));
+    return allowCredentials(
+        userRequired(httpSession)
+            .orElseGet(
+                () -> {
+                  httpSession.invalidate();
+                  return Response.ok();
+                }));
   }
 
   /**
@@ -322,12 +328,6 @@ public class AccountResource {
     }
 
     return statusCode;
-  }
-
-  private static ResponseBuilder logOut(HttpSession httpSession) {
-    httpSession.invalidate();
-
-    return Response.ok();
   }
 
   private static Optional<ResponseBuilder> noUserRequired(HttpSession httpSession) {
