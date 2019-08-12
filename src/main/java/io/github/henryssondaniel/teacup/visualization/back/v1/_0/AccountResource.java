@@ -75,14 +75,14 @@ public class AccountResource {
   private static final String TOKEN = "token";
 
   private final HttpClient httpClient;
-  private final Message message;
   private final Properties properties;
 
   private Algorithm algorithm;
   private JWTVerifier jwtVerifier;
+  private Message message;
 
   public AccountResource() {
-    this(null, HttpClient.newHttpClient(), null, createMessage(), PROPERTIES_CORE);
+    this(null, HttpClient.newHttpClient(), null, null, PROPERTIES_CORE);
   }
 
   AccountResource(
@@ -295,12 +295,14 @@ public class AccountResource {
     return '"' + key + "\": " + value;
   }
 
-  private static Message createMessage() {
-    var smtpProperties = new Properties();
-    smtpProperties.setProperty("mail.smtp.host", PROPERTIES_CORE.getProperty("smtp.host"));
-    smtpProperties.setProperty("mail.smtp.port", PROPERTIES_CORE.getProperty("smtp.port"));
+  private void createMessage() {
+    if (message == null) {
+      var smtpProperties = new Properties();
+      smtpProperties.setProperty("mail.smtp.host", PROPERTIES_CORE.getProperty("smtp.host"));
+      smtpProperties.setProperty("mail.smtp.port", PROPERTIES_CORE.getProperty("smtp.port"));
 
-    return new MimeMessage(Session.getInstance(smtpProperties));
+      message = new MimeMessage(Session.getInstance(smtpProperties));
+    }
   }
 
   private Algorithm getAlgorithm() {
@@ -375,6 +377,8 @@ public class AccountResource {
   }
 
   private void sendEmail(String content, String subject, String to) {
+    createMessage();
+
     try {
       message.setFrom(new InternetAddress(properties.getProperty("smtp.from")));
       message.setRecipients(RecipientType.TO, InternetAddress.parse(to));
