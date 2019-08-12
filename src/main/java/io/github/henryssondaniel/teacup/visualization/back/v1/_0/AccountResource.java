@@ -79,23 +79,23 @@ public class AccountResource {
 
   private Algorithm algorithm;
   private JWTVerifier jwtVerifier;
-  private Message message;
+  private Transport transport;
 
   public AccountResource() {
-    this(null, HttpClient.newHttpClient(), null, null, PROPERTIES_CORE);
+    this(null, HttpClient.newHttpClient(), null, PROPERTIES_CORE, null);
   }
 
   AccountResource(
       Algorithm algorithm,
       HttpClient httpClient,
       JWTVerifier jwtVerifier,
-      Message message,
-      Properties properties) {
+      Properties properties,
+      Transport transport) {
     this.algorithm = algorithm;
     this.httpClient = httpClient;
     this.jwtVerifier = jwtVerifier;
-    this.message = message;
     this.properties = new Properties(properties);
+    this.transport = transport;
   }
 
   /**
@@ -295,16 +295,6 @@ public class AccountResource {
     return '"' + key + "\": " + value;
   }
 
-  private void createMessage() {
-    if (message == null) {
-      var smtpProperties = new Properties();
-      smtpProperties.setProperty("mail.smtp.host", PROPERTIES_CORE.getProperty("smtp.host"));
-      smtpProperties.setProperty("mail.smtp.port", PROPERTIES_CORE.getProperty("smtp.port"));
-
-      message = new MimeMessage(Session.getInstance(smtpProperties));
-    }
-  }
-
   private Algorithm getAlgorithm() {
     if (algorithm == null) algorithm = Algorithm.HMAC256(properties.getProperty("secret.key"));
 
@@ -377,7 +367,13 @@ public class AccountResource {
   }
 
   private void sendEmail(String content, String subject, String to) {
-    createMessage();
+    var smtpProperties = new Properties();
+    smtpProperties.setProperty("mail.smtp.host", properties.getProperty("smtp.host"));
+    smtpProperties.setProperty("mail.smtp.port", properties.getProperty("smtp.port"));
+
+    var session = Session.getInstance(smtpProperties);
+
+    Message message = new MimeMessage(session);
 
     try {
       message.setFrom(new InternetAddress(properties.getProperty("smtp.from")));
@@ -385,7 +381,11 @@ public class AccountResource {
       message.setSubject(subject + " your Teacup account");
       message.setText(content);
 
-      Transport.send(message);
+      if (transport == null) transport = session.getTransport("smtp");
+
+      transport.connect();
+      transport.sendMessage(message, message.getAllRecipients());
+      transport.close();
     } catch (MessagingException e) {
       LOGGER.log(Level.SEVERE, "Could not send the email", e);
     }

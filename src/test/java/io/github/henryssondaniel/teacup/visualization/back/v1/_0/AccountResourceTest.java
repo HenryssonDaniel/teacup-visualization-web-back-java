@@ -16,6 +16,7 @@ import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.Claim;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.auth0.jwt.interfaces.JWTVerifier;
+import com.sun.mail.smtp.SMTPTransport;
 import java.io.IOException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -24,8 +25,10 @@ import java.net.http.HttpResponse.BodyHandlers;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Properties;
+import javax.mail.Address;
 import javax.mail.Message;
-import javax.mail.internet.MimeMessage;
+import javax.mail.MessagingException;
+import javax.mail.Transport;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.core.Response;
@@ -61,9 +64,8 @@ class AccountResourceTest {
   private final HttpServletRequest httpServletRequest = mock(HttpServletRequest.class);
   private final HttpSession httpSession = mock(HttpSession.class);
   private final JWTVerifier jwtVerifier = mock(JWTVerifier.class);
-  private final Message message = mock(MimeMessage.class);
   private final Properties properties = mock(Properties.class);
-
+  private final Transport transport = mock(SMTPTransport.class);
   @Mock private HttpResponse<String> httpResponse;
 
   @Test
@@ -97,6 +99,9 @@ class AccountResourceTest {
     when(httpServletRequest.getSession()).thenReturn(httpSession);
     when(jwtVerifier.verify(ID_VALUE)).thenReturn(decodedJWT);
     when(properties.getProperty(SERVICE)).thenReturn("http://localhost");
+    when(properties.getProperty("smtp.from")).thenReturn("localhost");
+    when(properties.getProperty("smtp.host")).thenReturn("localhost");
+    when(properties.getProperty("smtp.port")).thenReturn("8080");
   }
 
   @Test
@@ -104,6 +109,11 @@ class AccountResourceTest {
     changePassword(Status.OK);
 
     verifyChangePassword(2);
+
+    verify(httpResponse).body();
+    verify(httpResponse, times(2)).statusCode();
+    verifyNoMoreInteractions(httpResponse);
+
     verifyHttpSessionLogIn();
   }
 
@@ -126,6 +136,7 @@ class AccountResourceTest {
     changePassword(Status.INTERNAL_SERVER_ERROR);
 
     verifyChangePassword(1);
+    verifyZeroInteractions(httpResponse);
     verifyHttpSessionId();
   }
 
@@ -150,6 +161,7 @@ class AccountResourceTest {
     changePassword(Status.INTERNAL_SERVER_ERROR);
 
     verifyChangePassword(1);
+    verifyZeroInteractions(httpResponse);
     verifyHttpSessionId();
   }
 
@@ -162,6 +174,10 @@ class AccountResourceTest {
     changePassword(Status.INTERNAL_SERVER_ERROR);
 
     verifyChangePassword(2);
+
+    verify(httpResponse).statusCode();
+    verifyNoMoreInteractions(httpResponse);
+
     verifyHttpSessionId();
   }
 
@@ -174,6 +190,10 @@ class AccountResourceTest {
     changePassword(Status.INTERNAL_SERVER_ERROR);
 
     verifyChangePassword(2);
+
+    verify(httpResponse).statusCode();
+    verifyNoMoreInteractions(httpResponse);
+
     verifyHttpSessionId();
   }
 
@@ -185,6 +205,10 @@ class AccountResourceTest {
     changePassword(Status.FOUND);
 
     verifyChangePassword(2);
+
+    verify(httpResponse, times(2)).statusCode();
+    verifyNoMoreInteractions(httpResponse);
+
     verifyHttpSessionId();
   }
 
@@ -195,6 +219,10 @@ class AccountResourceTest {
     changePassword(Status.FOUND);
 
     verifyChangePassword(1);
+
+    verify(httpResponse).statusCode();
+    verifyNoMoreInteractions(httpResponse);
+
     verifyHttpSessionId();
   }
 
@@ -203,6 +231,11 @@ class AccountResourceTest {
     logIn(Status.OK);
 
     verifyLogIn();
+
+    verify(httpResponse).body();
+    verify(httpResponse).statusCode();
+    verifyNoMoreInteractions(httpResponse);
+
     verifyHttpSessionLogIn();
   }
 
@@ -217,6 +250,7 @@ class AccountResourceTest {
     }
 
     verifyValidationError();
+    verifyZeroInteractions(httpResponse);
     verifyZeroInteractions(jwtVerifier);
   }
 
@@ -228,6 +262,7 @@ class AccountResourceTest {
     logIn(Status.INTERNAL_SERVER_ERROR);
 
     verifyLogIn();
+    verifyZeroInteractions(httpResponse);
     verifyHttpSessionId();
   }
 
@@ -239,6 +274,7 @@ class AccountResourceTest {
     logIn(Status.INTERNAL_SERVER_ERROR);
 
     verifyLogIn();
+    verifyZeroInteractions(httpResponse);
     verifyHttpSessionId();
   }
 
@@ -249,6 +285,10 @@ class AccountResourceTest {
     logIn(Status.FOUND);
 
     verifyLogIn();
+
+    verify(httpResponse).statusCode();
+    verifyNoMoreInteractions(httpResponse);
+
     verifyHttpSessionId();
   }
 
@@ -272,6 +312,91 @@ class AccountResourceTest {
     verifyHttpSessionId();
   }
 
+  @Test
+  void recover() throws IOException, InterruptedException, MessagingException {
+    recover(Status.OK);
+
+    verify(algorithm).getName();
+    verify(algorithm).getSigningKeyId();
+    verify(algorithm).sign(any(byte[].class), any(byte[].class));
+    verifyNoMoreInteractions(algorithm);
+
+    verifyZeroInteractions(claim);
+    verifyZeroInteractions(decodedJWT);
+
+    verify(httpClient).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
+    verifyNoMoreInteractions(httpClient);
+
+    verifyHttpServletRequest();
+
+    verifyZeroInteractions(jwtVerifier);
+
+    verify(properties).getProperty(SERVICE);
+    verify(properties).getProperty("smtp.from");
+    verify(properties).getProperty("smtp.host");
+    verify(properties).getProperty("smtp.port");
+    verifyNoMoreInteractions(properties);
+
+    verify(httpResponse).statusCode();
+    verifyNoMoreInteractions(httpResponse);
+
+    verifyHttpSessionId();
+
+    verify(transport).close();
+    verify(transport).connect();
+    verify(transport).sendMessage(any(Message.class), any(Address[].class));
+    verifyNoMoreInteractions(transport);
+  }
+
+  @Test
+  void recoverWhenAuthorized() {
+    authorize();
+
+    recover(Status.UNAUTHORIZED);
+
+    verifyValidationError();
+    verifyZeroInteractions(httpResponse);
+    verifyZeroInteractions(jwtVerifier);
+  }
+
+  @Test
+  void recoverWhenInterruptedException() throws IOException, InterruptedException {
+    when(httpClient.send(any(HttpRequest.class), eq(BodyHandlers.ofString())))
+        .thenThrow(INTERRUPTED_EXCEPTION);
+
+    recover(Status.INTERNAL_SERVER_ERROR);
+
+    verifyRecover();
+    verifyZeroInteractions(httpResponse);
+    verifyHttpSessionId();
+  }
+
+  @Test
+  void recoverWhenIoException() throws IOException, InterruptedException {
+    when(httpClient.send(any(HttpRequest.class), eq(BodyHandlers.ofString())))
+        .thenThrow(IO_EXCEPTION);
+
+    recover(Status.INTERNAL_SERVER_ERROR);
+
+    verifyRecover();
+    verifyZeroInteractions(httpResponse);
+    verifyHttpSessionId();
+  }
+
+  @Test
+  void recoverWhenNotOk() throws IOException, InterruptedException {
+    when(httpResponse.statusCode()).thenReturn(Status.FOUND.getStatusCode());
+
+    recover(Status.FOUND);
+
+    verifyRecover();
+
+    verify(httpResponse).statusCode();
+    verifyNoMoreInteractions(httpResponse);
+
+    verifyHttpSessionId();
+  }
+
   private void authorize() {
     when(httpSession.getAttribute(ID)).thenReturn(ID_VALUE);
   }
@@ -284,7 +409,7 @@ class AccountResourceTest {
 
   private void changePassword(StatusType statusType) {
     try (var response =
-        new AccountResource(algorithm, httpClient, jwtVerifier, message, properties)
+        new AccountResource(algorithm, httpClient, jwtVerifier, properties, transport)
             .changePassword(
                 '{' + join(", ", JSON_TOKEN, JSON_PASSWORD) + '}', httpServletRequest)) {
       verifyResponse(response, statusType);
@@ -293,7 +418,7 @@ class AccountResourceTest {
 
   private void logIn(StatusType statusType) {
     try (var response =
-        new AccountResource(algorithm, httpClient, jwtVerifier, message, properties)
+        new AccountResource(algorithm, httpClient, jwtVerifier, properties, transport)
             .logIn('{' + join(", ", JSON_EMAIL, JSON_PASSWORD) + '}', httpServletRequest)) {
       verifyResponse(response, statusType);
     }
@@ -301,6 +426,14 @@ class AccountResourceTest {
 
   private void logOut(StatusType statusType) {
     try (var response = AccountResource.logOut(httpServletRequest)) {
+      verifyResponse(response, statusType);
+    }
+  }
+
+  private void recover(StatusType statusType) {
+    try (var response =
+        new AccountResource(algorithm, httpClient, jwtVerifier, properties, transport)
+            .recover('{' + join(", ", JSON_EMAIL) + '}', httpServletRequest)) {
       verifyResponse(response, statusType);
     }
   }
@@ -322,10 +455,10 @@ class AccountResourceTest {
     verify(jwtVerifier).verify(ID_VALUE);
     verifyNoMoreInteractions(jwtVerifier);
 
-    verifyZeroInteractions(message);
-
     verify(properties, times(times)).getProperty(SERVICE);
     verifyNoMoreInteractions(properties);
+
+    verifyZeroInteractions(transport);
   }
 
   private void verifyHttpServletRequest() {
@@ -355,10 +488,28 @@ class AccountResourceTest {
 
     verifyHttpServletRequest();
 
-    verifyZeroInteractions(message);
+    verify(properties).getProperty(SERVICE);
+    verifyNoMoreInteractions(properties);
+
+    verifyZeroInteractions(transport);
+  }
+
+  private void verifyRecover() throws IOException, InterruptedException {
+    verifyZeroInteractions(algorithm);
+    verifyZeroInteractions(claim);
+    verifyZeroInteractions(decodedJWT);
+
+    verify(httpClient).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
+    verifyNoMoreInteractions(httpClient);
+
+    verifyHttpServletRequest();
+
+    verifyZeroInteractions(jwtVerifier);
 
     verify(properties).getProperty(SERVICE);
     verifyNoMoreInteractions(properties);
+
+    verifyZeroInteractions(transport);
   }
 
   private static void verifyResponse(Response response, StatusType statusType) {
@@ -378,11 +529,12 @@ class AccountResourceTest {
     verifyZeroInteractions(claim);
     verifyZeroInteractions(decodedJWT);
     verifyZeroInteractions(httpClient);
+    verifyZeroInteractions(httpResponse);
 
     verifyHttpServletRequest();
     verifyHttpSessionId();
 
-    verifyZeroInteractions(message);
     verifyZeroInteractions(properties);
+    verifyZeroInteractions(transport);
   }
 }
