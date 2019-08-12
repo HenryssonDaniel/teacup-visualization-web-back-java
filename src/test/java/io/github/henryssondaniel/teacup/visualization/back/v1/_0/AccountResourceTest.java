@@ -24,6 +24,8 @@ import java.net.http.HttpResponse.BodyHandlers;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Properties;
+import javax.mail.Message;
+import javax.mail.internet.MimeMessage;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.core.Response;
@@ -59,6 +61,7 @@ class AccountResourceTest {
   private final HttpServletRequest httpServletRequest = mock(HttpServletRequest.class);
   private final HttpSession httpSession = mock(HttpSession.class);
   private final JWTVerifier jwtVerifier = mock(JWTVerifier.class);
+  private final Message message = mock(MimeMessage.class);
   private final Properties properties = mock(Properties.class);
 
   @Mock private HttpResponse<String> httpResponse;
@@ -110,7 +113,7 @@ class AccountResourceTest {
 
     changePassword(Status.UNAUTHORIZED);
 
-    verifyChangePasswordValidationError();
+    verifyValidationError();
     verifyZeroInteractions(jwtVerifier);
   }
 
@@ -132,7 +135,7 @@ class AccountResourceTest {
 
     changePassword(Status.FORBIDDEN);
 
-    verifyChangePasswordValidationError();
+    verifyValidationError();
 
     verify(jwtVerifier).verify(ID_VALUE);
     verifyNoMoreInteractions(jwtVerifier);
@@ -213,7 +216,7 @@ class AccountResourceTest {
       verifyResponse(response, Status.UNAUTHORIZED);
     }
 
-    verifyChangePasswordValidationError();
+    verifyValidationError();
     verifyZeroInteractions(jwtVerifier);
   }
 
@@ -281,7 +284,7 @@ class AccountResourceTest {
 
   private void changePassword(StatusType statusType) {
     try (var response =
-        new AccountResource(algorithm, httpClient, jwtVerifier, properties)
+        new AccountResource(algorithm, httpClient, jwtVerifier, message, properties)
             .changePassword(
                 '{' + join(", ", JSON_TOKEN, JSON_PASSWORD) + '}', httpServletRequest)) {
       verifyResponse(response, statusType);
@@ -290,7 +293,7 @@ class AccountResourceTest {
 
   private void logIn(StatusType statusType) {
     try (var response =
-        new AccountResource(null, httpClient, jwtVerifier, properties)
+        new AccountResource(algorithm, httpClient, jwtVerifier, message, properties)
             .logIn('{' + join(", ", JSON_EMAIL, JSON_PASSWORD) + '}', httpServletRequest)) {
       verifyResponse(response, statusType);
     }
@@ -303,6 +306,8 @@ class AccountResourceTest {
   }
 
   private void verifyChangePassword(int times) throws IOException, InterruptedException {
+    verifyZeroInteractions(algorithm);
+
     verify(claim).asString();
     verifyNoMoreInteractions(claim);
 
@@ -317,19 +322,10 @@ class AccountResourceTest {
     verify(jwtVerifier).verify(ID_VALUE);
     verifyNoMoreInteractions(jwtVerifier);
 
+    verifyZeroInteractions(message);
+
     verify(properties, times(times)).getProperty(SERVICE);
     verifyNoMoreInteractions(properties);
-  }
-
-  private void verifyChangePasswordValidationError() {
-    verifyZeroInteractions(claim);
-    verifyZeroInteractions(decodedJWT);
-    verifyZeroInteractions(httpClient);
-
-    verifyHttpServletRequest();
-    verifyHttpSessionId();
-
-    verifyZeroInteractions(properties);
   }
 
   private void verifyHttpServletRequest() {
@@ -352,10 +348,14 @@ class AccountResourceTest {
   }
 
   private void verifyLogIn() throws IOException, InterruptedException {
+    verifyZeroInteractions(algorithm);
+
     verify(httpClient).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
     verifyNoMoreInteractions(httpClient);
 
     verifyHttpServletRequest();
+
+    verifyZeroInteractions(message);
 
     verify(properties).getProperty(SERVICE);
     verifyNoMoreInteractions(properties);
@@ -371,5 +371,18 @@ class AccountResourceTest {
 
     assertThat(entry.getKey()).isEqualTo(ALLOW_CREDENTIALS);
     assertThat(entry.getValue()).containsExactly("true");
+  }
+
+  private void verifyValidationError() {
+    verifyZeroInteractions(algorithm);
+    verifyZeroInteractions(claim);
+    verifyZeroInteractions(decodedJWT);
+    verifyZeroInteractions(httpClient);
+
+    verifyHttpServletRequest();
+    verifyHttpSessionId();
+
+    verifyZeroInteractions(message);
+    verifyZeroInteractions(properties);
   }
 }

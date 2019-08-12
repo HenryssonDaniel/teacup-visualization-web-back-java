@@ -75,20 +75,26 @@ public class AccountResource {
   private static final String TOKEN = "token";
 
   private final HttpClient httpClient;
+  private final Message message;
   private final Properties properties;
 
   private Algorithm algorithm;
   private JWTVerifier jwtVerifier;
 
   public AccountResource() {
-    this(null, HttpClient.newHttpClient(), null, PROPERTIES_CORE);
+    this(null, HttpClient.newHttpClient(), null, createMessage(), PROPERTIES_CORE);
   }
 
   AccountResource(
-      Algorithm algorithm, HttpClient httpClient, JWTVerifier jwtVerifier, Properties properties) {
+      Algorithm algorithm,
+      HttpClient httpClient,
+      JWTVerifier jwtVerifier,
+      Message message,
+      Properties properties) {
     this.algorithm = algorithm;
     this.httpClient = httpClient;
     this.jwtVerifier = jwtVerifier;
+    this.message = message;
     this.properties = new Properties(properties);
   }
 
@@ -217,16 +223,16 @@ public class AccountResource {
   public String verify(@PathParam(TOKEN) String token) {
     LOGGER.log(Level.FINE, "Verify");
 
-    String message;
+    String data;
 
     try {
-      message = verifyAccount(getJwtVerifier().verify(token).getClaim(EMAIL).asString());
+      data = verifyAccount(getJwtVerifier().verify(token).getClaim(EMAIL).asString());
     } catch (JWTVerificationException e) {
       LOGGER.log(Level.SEVERE, "The token could not be verified", e);
-      message = "The token is not valid";
+      data = "The token is not valid";
     }
 
-    return message;
+    return data;
   }
 
   private ResponseBuilder changePassword(HttpSession httpSession, JSONObject jsonObject) {
@@ -287,6 +293,14 @@ public class AccountResource {
 
   private static String createKeyValue(String key, Object value) {
     return '"' + key + "\": " + value;
+  }
+
+  private static Message createMessage() {
+    var smtpProperties = new Properties();
+    smtpProperties.setProperty("mail.smtp.host", PROPERTIES_CORE.getProperty("smtp.host"));
+    smtpProperties.setProperty("mail.smtp.port", PROPERTIES_CORE.getProperty("smtp.port"));
+
+    return new MimeMessage(Session.getInstance(smtpProperties));
   }
 
   private Algorithm getAlgorithm() {
@@ -361,12 +375,7 @@ public class AccountResource {
   }
 
   private void sendEmail(String content, String subject, String to) {
-    var smtpProperties = new Properties();
-    smtpProperties.setProperty("mail.smtp.host", properties.getProperty("smtp.host"));
-    smtpProperties.setProperty("mail.smtp.port", properties.getProperty("smtp.port"));
-
     try {
-      Message message = new MimeMessage(Session.getInstance(smtpProperties));
       message.setFrom(new InternetAddress(properties.getProperty("smtp.from")));
       message.setRecipients(RecipientType.TO, InternetAddress.parse(to));
       message.setSubject(subject + " your Teacup account");
@@ -428,13 +437,13 @@ public class AccountResource {
   }
 
   private String verifyAccount(String email) {
-    String message = null;
+    String data = null;
 
     try {
       var statusCode =
           sendRequest(createHttpRequest(createJson(EMAIL, email), "verify")).statusCode();
 
-      if (statusCode == Status.OK.getStatusCode()) message = "The account have been verified";
+      if (statusCode == Status.OK.getStatusCode()) data = "The account have been verified";
     } catch (IOException e) {
       LOGGER.log(Level.SEVERE, ERROR_VERIFY, e);
     } catch (InterruptedException e) {
@@ -443,6 +452,6 @@ public class AccountResource {
     }
 
     return Objects.requireNonNullElse(
-        message, "The account could not be verified, please try again later");
+        data, "The account could not be verified, please try again later");
   }
 }
