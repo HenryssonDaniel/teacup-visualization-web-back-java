@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
 import com.auth0.jwt.interfaces.JWTVerifier;
@@ -24,11 +25,12 @@ import org.junit.jupiter.api.Test;
 
 class AccountResourceTest {
   private static final String ALLOW_CREDENTIALS = "Access-Control-Allow-credentials";
+  private static final String EMAIL = "email";
   private static final String ID = "id";
   private static final String ID_VALUE = "123";
+  private static final String JSON_EMAIL = "\"email\": \"email\"";
   private static final String JSON_PASSWORD = "\"password\": \"password\"";
-  private static final String JSON_TOKEN = "\"token\": \"123\"";
-
+  private static final String SECRET = "password";
   private final Account account = mock(Account.class);
   private final HttpServletRequest httpServletRequest = mock(HttpServletRequest.class);
   private final HttpSession httpSession = mock(HttpSession.class);
@@ -70,8 +72,7 @@ class AccountResourceTest {
 
     try (var response =
         new AccountResource(account, null, null, properties)
-            .changePassword(
-                '{' + join(", ", JSON_TOKEN, JSON_PASSWORD) + '}', httpServletRequest)) {
+            .changePassword("{}", httpServletRequest)) {
       verifyResponse(response, Status.OK);
     }
 
@@ -83,18 +84,56 @@ class AccountResourceTest {
 
     verify(httpSession).getAttribute(ID);
     verifyNoMoreInteractions(httpSession);
+
+    verify(properties).getProperty("secret.key");
   }
 
   @Test
   void changePasswordWhenAuthorized() {
     authorize();
 
-    try (var response =
-        new AccountResource()
-            .changePassword(
-                '{' + join(", ", JSON_TOKEN, JSON_PASSWORD) + '}', httpServletRequest)) {
+    try (var response = new AccountResource().changePassword("{}", httpServletRequest)) {
       verifyResponse(response, Status.UNAUTHORIZED);
     }
+
+    verify(httpServletRequest).getSession();
+    verifyNoMoreInteractions(httpServletRequest);
+
+    verify(httpSession).getAttribute(ID);
+    verifyNoMoreInteractions(httpSession);
+  }
+
+  @Test
+  void logIn() {
+    when(account.logIn(EMAIL, httpSession, SECRET)).thenReturn(Status.OK.getStatusCode());
+
+    try (var response =
+        new AccountResource(account, null, null, null)
+            .logIn('{' + join(", ", JSON_EMAIL, JSON_PASSWORD) + '}', httpServletRequest)) {
+      verifyResponse(response, Status.OK);
+    }
+
+    verify(account).logIn(EMAIL, httpSession, SECRET);
+    verifyNoMoreInteractions(account);
+
+    verify(httpServletRequest).getSession();
+    verifyNoMoreInteractions(httpServletRequest);
+
+    verify(httpSession).getAttribute(ID);
+    verifyNoMoreInteractions(httpSession);
+  }
+
+  @Test
+  void logInWhenAuthorized() {
+    authorize();
+
+    try (var response =
+        new AccountResource(account, null, null, null)
+            .logIn('{' + join(", ", JSON_EMAIL, JSON_PASSWORD) + '}', httpServletRequest)) {
+      verifyResponse(response, Status.UNAUTHORIZED);
+    }
+
+    verifyZeroInteractions(account);
 
     verify(httpServletRequest).getSession();
     verifyNoMoreInteractions(httpServletRequest);
