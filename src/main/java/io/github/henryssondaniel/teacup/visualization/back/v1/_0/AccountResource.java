@@ -46,6 +46,7 @@ public class AccountResource {
   private static final String TOKEN = "token";
 
   private final Account account;
+  private final Properties properties;
 
   private Algorithm algorithm;
   private JWTVerifier jwtVerifier;
@@ -59,14 +60,16 @@ public class AccountResource {
     this(PROPERTIES_CORE);
   }
 
-  AccountResource(Account account, Algorithm algorithm, JWTVerifier jwtVerifier) {
+  AccountResource(
+      Account account, Algorithm algorithm, JWTVerifier jwtVerifier, Properties properties) {
     this.account = account;
     this.algorithm = algorithm;
     this.jwtVerifier = jwtVerifier;
+    this.properties = new Properties(properties);
   }
 
   private AccountResource(Properties properties) {
-    this(new AccountImpl(HttpClient.newHttpClient(), properties), null, null);
+    this(new AccountImpl(HttpClient.newHttpClient(), properties), null, null, properties);
   }
 
   /**
@@ -214,7 +217,7 @@ public class AccountResource {
   }
 
   private Algorithm getAlgorithm() {
-    if (algorithm == null) algorithm = Algorithm.HMAC256(PROPERTIES_CORE.getProperty("secret.key"));
+    if (algorithm == null) algorithm = Algorithm.HMAC256(properties.getProperty("secret.key"));
 
     return algorithm;
   }
