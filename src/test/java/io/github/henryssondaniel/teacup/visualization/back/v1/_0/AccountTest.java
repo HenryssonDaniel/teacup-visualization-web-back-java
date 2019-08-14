@@ -30,6 +30,7 @@ import java.util.Properties;
 import javax.mail.Message;
 import javax.mail.MessagingException;
 import javax.mail.Transport;
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.core.Response;
 import org.json.JSONObject;
@@ -60,11 +61,11 @@ class AccountTest {
   private final DecodedJWT decodedJWT = mock(DecodedJWT.class);
   private final EmailClient emailClient = mock(EmailClient.class);
   private final HttpClient httpClient = mock(HttpClient.class);
+  private final HttpServletRequest httpServletRequest = mock(HttpServletRequest.class);
   private final HttpSession httpSession = mock(HttpSession.class);
   private final JSONObject jsonObject = mock(JSONObject.class);
   private final JWTVerifier jwtVerifier = mock(JWTVerifier.class);
   private final Properties properties = mock(Properties.class);
-
   @Mock private HttpResponse<String> httpResponse;
 
   @BeforeEach
@@ -79,6 +80,10 @@ class AccountTest {
         .thenReturn(
             '{' + String.join(", ", JSON_EMAIL, JSON_FIRST_NAME, JSON_ID, JSON_LAST_NAME) + '}');
     when(httpResponse.statusCode()).thenReturn(OK.getStatusCode());
+    when(httpServletRequest.getSession()).thenReturn(httpSession);
+    when(httpServletRequest.getServerName()).thenReturn("localhost");
+    when(httpServletRequest.getServerPort()).thenReturn(100);
+    when(jsonObject.getString(EMAIL)).thenReturn(EMAIL);
     when(jsonObject.getString(TOKEN)).thenReturn(TOKEN);
     when(jwtVerifier.verify(TOKEN)).thenReturn(decodedJWT);
     when(properties.getProperty(VISUALIZATION)).thenReturn("http://localhost");
@@ -89,7 +94,7 @@ class AccountTest {
   @Test
   void changePassword() throws IOException, InterruptedException {
     assertThat(
-            new AccountImpl(null, httpClient, properties)
+            new AccountImpl(httpClient, properties)
                 .changePassword(httpSession, jsonObject, jwtVerifier))
         .isEqualToComparingFieldByFieldRecursively(Response.status(OK));
 
@@ -129,7 +134,7 @@ class AccountTest {
         .thenThrow(new InterruptedException("test"));
 
     assertThat(
-            new AccountImpl(null, httpClient, properties)
+            new AccountImpl(httpClient, properties)
                 .changePassword(httpSession, jsonObject, jwtVerifier))
         .isEqualToComparingFieldByFieldRecursively(Response.status(INTERNAL_SERVER_ERROR));
 
@@ -186,7 +191,7 @@ class AccountTest {
         .thenThrow(new IOException("test"));
 
     assertThat(
-            new AccountImpl(null, httpClient, properties)
+            new AccountImpl(httpClient, properties)
                 .changePassword(httpSession, jsonObject, jwtVerifier))
         .isEqualToComparingFieldByFieldRecursively(Response.status(INTERNAL_SERVER_ERROR));
 
@@ -220,7 +225,7 @@ class AccountTest {
         .thenThrow(new InterruptedException("test"));
 
     assertThat(
-            new AccountImpl(null, httpClient, properties)
+            new AccountImpl(httpClient, properties)
                 .changePassword(httpSession, jsonObject, jwtVerifier))
         .isEqualToComparingFieldByFieldRecursively(Response.status(INTERNAL_SERVER_ERROR));
 
@@ -256,7 +261,7 @@ class AccountTest {
         .thenThrow(new IOException("test"));
 
     assertThat(
-            new AccountImpl(null, httpClient, properties)
+            new AccountImpl(httpClient, properties)
                 .changePassword(httpSession, jsonObject, jwtVerifier))
         .isEqualToComparingFieldByFieldRecursively(Response.status(INTERNAL_SERVER_ERROR));
 
@@ -290,7 +295,7 @@ class AccountTest {
     when(httpResponse.statusCode()).thenReturn(OK.getStatusCode(), NO_CONTENT.getStatusCode());
 
     assertThat(
-            new AccountImpl(null, httpClient, properties)
+            new AccountImpl(httpClient, properties)
                 .changePassword(httpSession, jsonObject, jwtVerifier))
         .isEqualToComparingFieldByFieldRecursively(Response.status(NO_CONTENT));
 
@@ -324,7 +329,7 @@ class AccountTest {
     when(httpResponse.statusCode()).thenReturn(NO_CONTENT.getStatusCode());
 
     assertThat(
-            new AccountImpl(null, httpClient, properties)
+            new AccountImpl(httpClient, properties)
                 .changePassword(httpSession, jsonObject, jwtVerifier))
         .isEqualToComparingFieldByFieldRecursively(Response.status(NO_CONTENT));
 
@@ -355,7 +360,7 @@ class AccountTest {
 
   @Test
   void logIn() throws IOException, InterruptedException {
-    assertThat(new AccountImpl(null, httpClient, properties).logIn(EMAIL, httpSession, SECRET))
+    assertThat(new AccountImpl(httpClient, properties).logIn(EMAIL, httpSession, SECRET))
         .isEqualTo(OK.getStatusCode());
 
     verify(httpClient).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
@@ -380,7 +385,7 @@ class AccountTest {
     when(httpClient.send(any(HttpRequest.class), eq(BodyHandlers.ofString())))
         .thenThrow(new InterruptedException("test"));
 
-    assertThat(new AccountImpl(null, httpClient, properties).logIn(EMAIL, httpSession, SECRET))
+    assertThat(new AccountImpl(httpClient, properties).logIn(EMAIL, httpSession, SECRET))
         .isEqualTo(INTERNAL_SERVER_ERROR.getStatusCode());
 
     verify(httpClient).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
@@ -398,7 +403,7 @@ class AccountTest {
     when(httpClient.send(any(HttpRequest.class), eq(BodyHandlers.ofString())))
         .thenThrow(new IOException("test"));
 
-    assertThat(new AccountImpl(null, httpClient, properties).logIn(EMAIL, httpSession, SECRET))
+    assertThat(new AccountImpl(httpClient, properties).logIn(EMAIL, httpSession, SECRET))
         .isEqualTo(INTERNAL_SERVER_ERROR.getStatusCode());
 
     verify(httpClient).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
@@ -415,7 +420,7 @@ class AccountTest {
   void logInWhenNotOk() throws IOException, InterruptedException {
     when(httpResponse.statusCode()).thenReturn(NO_CONTENT.getStatusCode());
 
-    assertThat(new AccountImpl(null, httpClient, properties).logIn(EMAIL, httpSession, SECRET))
+    assertThat(new AccountImpl(httpClient, properties).logIn(EMAIL, httpSession, SECRET))
         .isEqualTo(NO_CONTENT.getStatusCode());
 
     verify(httpClient).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
@@ -564,6 +569,311 @@ class AccountTest {
     verifyNoMoreInteractions(httpResponse);
 
     verifyZeroInteractions(httpSession);
+
+    verify(properties).getProperty(VISUALIZATION);
+    verifyNoMoreInteractions(properties);
+  }
+
+  @Test
+  void signUp() throws IOException, InterruptedException, MessagingException {
+    assertThat(
+            new AccountImpl(emailClient, httpClient, properties)
+                .signUp(algorithm, httpServletRequest, jsonObject))
+        .isEqualTo(OK.getStatusCode());
+
+    verify(algorithm).getName();
+    verify(algorithm).getSigningKeyId();
+    verify(algorithm).sign(any(byte[].class), any(byte[].class));
+    verifyNoMoreInteractions(algorithm);
+
+    verify(emailClient)
+        .send(
+            startsWith(
+                "Please verify your account by clicking here: localhost:100/api/account/verify/"),
+            any(Message.class),
+            eq("Verify"),
+            eq(EMAIL),
+            any(Transport.class));
+    verifyNoMoreInteractions(emailClient);
+
+    verify(httpClient, times(2)).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
+    verifyNoMoreInteractions(httpClient);
+
+    verify(httpResponse).body();
+    verify(httpResponse, times(2)).statusCode();
+    verifyNoMoreInteractions(httpResponse);
+
+    verify(httpServletRequest).getServerName();
+    verify(httpServletRequest).getServerPort();
+    verify(httpServletRequest).getSession();
+    verifyNoMoreInteractions(httpServletRequest);
+
+    verify(httpSession).setAttribute(EMAIL, EMAIL);
+    verify(httpSession).setAttribute(FIRST_NAME, FIRST_NAME);
+    verify(httpSession).setAttribute("id", "123");
+    verify(httpSession).setAttribute(LAST_NAME, LAST_NAME);
+    verifyNoMoreInteractions(httpSession);
+
+    verify(jsonObject).getString(EMAIL);
+    verify(jsonObject).getString(FIRST_NAME);
+    verify(jsonObject).getString(LAST_NAME);
+    verify(jsonObject).getString(SECRET);
+    verifyNoMoreInteractions(jsonObject);
+
+    verify(properties, times(2)).getProperty(VISUALIZATION);
+    verify(properties).getProperty(SMTP_HOST);
+    verify(properties).getProperty(SMTP_PORT);
+    verifyNoMoreInteractions(properties);
+  }
+
+  @Test
+  void signUpWhenEmailErrorLogInIoException()
+      throws IOException, InterruptedException, MessagingException {
+    doThrow(new MessagingException("test"))
+        .when(emailClient)
+        .send(
+            startsWith(
+                "Please verify your account by clicking here: localhost:100/api/account/verify/"),
+            any(Message.class),
+            eq("Verify"),
+            eq(EMAIL),
+            any(Transport.class));
+    when(httpClient.send(any(HttpRequest.class), eq(BodyHandlers.ofString())))
+        .thenReturn(httpResponse)
+        .thenThrow(new IOException("test"));
+
+    assertThat(
+            new AccountImpl(emailClient, httpClient, properties)
+                .signUp(algorithm, httpServletRequest, jsonObject))
+        .isEqualTo(INTERNAL_SERVER_ERROR.getStatusCode());
+
+    verify(algorithm).getName();
+    verify(algorithm).getSigningKeyId();
+    verify(algorithm).sign(any(byte[].class), any(byte[].class));
+    verifyNoMoreInteractions(algorithm);
+
+    verify(emailClient)
+        .send(
+            startsWith(
+                "Please verify your account by clicking here: localhost:100/api/account/verify/"),
+            any(Message.class),
+            eq("Verify"),
+            eq(EMAIL),
+            any(Transport.class));
+    verifyNoMoreInteractions(emailClient);
+
+    verify(httpClient, times(2)).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
+    verifyNoMoreInteractions(httpClient);
+
+    verify(httpResponse).statusCode();
+    verifyNoMoreInteractions(httpResponse);
+
+    verify(httpServletRequest).getServerName();
+    verify(httpServletRequest).getServerPort();
+    verify(httpServletRequest).getSession();
+    verifyNoMoreInteractions(httpServletRequest);
+
+    verifyZeroInteractions(httpSession);
+
+    verify(jsonObject).getString(EMAIL);
+    verify(jsonObject).getString(FIRST_NAME);
+    verify(jsonObject).getString(LAST_NAME);
+    verify(jsonObject).getString(SECRET);
+    verifyNoMoreInteractions(jsonObject);
+
+    verify(properties, times(2)).getProperty(VISUALIZATION);
+    verify(properties).getProperty(SMTP_HOST);
+    verify(properties).getProperty(SMTP_PORT);
+    verifyNoMoreInteractions(properties);
+  }
+
+  @Test
+  void signUpWhenInterruptedException() throws IOException, InterruptedException {
+    when(httpClient.send(any(HttpRequest.class), eq(BodyHandlers.ofString())))
+        .thenThrow(new InterruptedException("test"));
+
+    assertThat(
+            new AccountImpl(emailClient, httpClient, properties)
+                .signUp(algorithm, httpServletRequest, jsonObject))
+        .isEqualTo(INTERNAL_SERVER_ERROR.getStatusCode());
+
+    verifyZeroInteractions(algorithm);
+    verifyZeroInteractions(emailClient);
+
+    verify(httpClient).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
+    verifyNoMoreInteractions(httpClient);
+
+    verifyZeroInteractions(httpResponse);
+    verifyZeroInteractions(httpServletRequest);
+    verifyZeroInteractions(httpSession);
+
+    verify(jsonObject).getString(EMAIL);
+    verify(jsonObject).getString(FIRST_NAME);
+    verify(jsonObject).getString(LAST_NAME);
+    verify(jsonObject).getString(SECRET);
+    verifyNoMoreInteractions(jsonObject);
+
+    verify(properties).getProperty(VISUALIZATION);
+    verifyNoMoreInteractions(properties);
+  }
+
+  @Test
+  void signUpWhenIoException() throws IOException, InterruptedException {
+    when(httpClient.send(any(HttpRequest.class), eq(BodyHandlers.ofString())))
+        .thenThrow(new IOException("test"));
+
+    assertThat(
+            new AccountImpl(emailClient, httpClient, properties)
+                .signUp(algorithm, httpServletRequest, jsonObject))
+        .isEqualTo(INTERNAL_SERVER_ERROR.getStatusCode());
+
+    verifyZeroInteractions(algorithm);
+    verifyZeroInteractions(emailClient);
+
+    verify(httpClient).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
+    verifyNoMoreInteractions(httpClient);
+
+    verifyZeroInteractions(httpResponse);
+    verifyZeroInteractions(httpServletRequest);
+    verifyZeroInteractions(httpSession);
+
+    verify(jsonObject).getString(EMAIL);
+    verify(jsonObject).getString(FIRST_NAME);
+    verify(jsonObject).getString(LAST_NAME);
+    verify(jsonObject).getString(SECRET);
+    verifyNoMoreInteractions(jsonObject);
+
+    verify(properties).getProperty(VISUALIZATION);
+    verifyNoMoreInteractions(properties);
+  }
+
+  @Test
+  void signUpWhenLogInInterruptedException()
+      throws IOException, InterruptedException, MessagingException {
+    when(httpClient.send(any(HttpRequest.class), eq(BodyHandlers.ofString())))
+        .thenReturn(httpResponse)
+        .thenThrow(new InterruptedException("test"));
+
+    assertThat(
+            new AccountImpl(emailClient, httpClient, properties)
+                .signUp(algorithm, httpServletRequest, jsonObject))
+        .isEqualTo(INTERNAL_SERVER_ERROR.getStatusCode());
+
+    verify(algorithm).getName();
+    verify(algorithm).getSigningKeyId();
+    verify(algorithm).sign(any(byte[].class), any(byte[].class));
+    verifyNoMoreInteractions(algorithm);
+
+    verify(emailClient)
+        .send(
+            startsWith(
+                "Please verify your account by clicking here: localhost:100/api/account/verify/"),
+            any(Message.class),
+            eq("Verify"),
+            eq(EMAIL),
+            any(Transport.class));
+    verifyNoMoreInteractions(emailClient);
+
+    verify(httpClient, times(2)).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
+    verifyNoMoreInteractions(httpClient);
+
+    verify(httpResponse).statusCode();
+    verifyNoMoreInteractions(httpResponse);
+
+    verify(httpServletRequest).getServerName();
+    verify(httpServletRequest).getServerPort();
+    verify(httpServletRequest).getSession();
+    verifyNoMoreInteractions(httpServletRequest);
+
+    verifyZeroInteractions(httpSession);
+
+    verify(jsonObject).getString(EMAIL);
+    verify(jsonObject).getString(FIRST_NAME);
+    verify(jsonObject).getString(LAST_NAME);
+    verify(jsonObject).getString(SECRET);
+    verifyNoMoreInteractions(jsonObject);
+
+    verify(properties, times(2)).getProperty(VISUALIZATION);
+    verify(properties).getProperty(SMTP_HOST);
+    verify(properties).getProperty(SMTP_PORT);
+    verifyNoMoreInteractions(properties);
+  }
+
+  @Test
+  void signUpWhenLogInNotOk() throws IOException, InterruptedException, MessagingException {
+    when(httpResponse.statusCode()).thenReturn(OK.getStatusCode(), NO_CONTENT.getStatusCode());
+
+    assertThat(
+            new AccountImpl(emailClient, httpClient, properties)
+                .signUp(algorithm, httpServletRequest, jsonObject))
+        .isEqualTo(NO_CONTENT.getStatusCode());
+
+    verify(algorithm).getName();
+    verify(algorithm).getSigningKeyId();
+    verify(algorithm).sign(any(byte[].class), any(byte[].class));
+    verifyNoMoreInteractions(algorithm);
+
+    verify(emailClient)
+        .send(
+            startsWith(
+                "Please verify your account by clicking here: localhost:100/api/account/verify/"),
+            any(Message.class),
+            eq("Verify"),
+            eq(EMAIL),
+            any(Transport.class));
+    verifyNoMoreInteractions(emailClient);
+
+    verify(httpClient, times(2)).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
+    verifyNoMoreInteractions(httpClient);
+
+    verify(httpResponse, times(2)).statusCode();
+    verifyNoMoreInteractions(httpResponse);
+
+    verify(httpServletRequest).getServerName();
+    verify(httpServletRequest).getServerPort();
+    verify(httpServletRequest).getSession();
+    verifyNoMoreInteractions(httpServletRequest);
+
+    verifyZeroInteractions(httpSession);
+
+    verify(jsonObject).getString(EMAIL);
+    verify(jsonObject).getString(FIRST_NAME);
+    verify(jsonObject).getString(LAST_NAME);
+    verify(jsonObject).getString(SECRET);
+    verifyNoMoreInteractions(jsonObject);
+
+    verify(properties, times(2)).getProperty(VISUALIZATION);
+    verify(properties).getProperty(SMTP_HOST);
+    verify(properties).getProperty(SMTP_PORT);
+    verifyNoMoreInteractions(properties);
+  }
+
+  @Test
+  void signUpWhenNotOk() throws IOException, InterruptedException {
+    when(httpResponse.statusCode()).thenReturn(NO_CONTENT.getStatusCode());
+
+    assertThat(
+            new AccountImpl(emailClient, httpClient, properties)
+                .signUp(algorithm, httpServletRequest, jsonObject))
+        .isEqualTo(NO_CONTENT.getStatusCode());
+
+    verifyZeroInteractions(algorithm);
+    verifyZeroInteractions(emailClient);
+
+    verify(httpClient).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
+    verifyNoMoreInteractions(httpClient);
+
+    verify(httpResponse).statusCode();
+    verifyNoMoreInteractions(httpResponse);
+
+    verifyZeroInteractions(httpServletRequest);
+    verifyZeroInteractions(httpSession);
+
+    verify(jsonObject).getString(EMAIL);
+    verify(jsonObject).getString(FIRST_NAME);
+    verify(jsonObject).getString(LAST_NAME);
+    verify(jsonObject).getString(SECRET);
+    verifyNoMoreInteractions(jsonObject);
 
     verify(properties).getProperty(VISUALIZATION);
     verifyNoMoreInteractions(properties);
