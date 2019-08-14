@@ -41,6 +41,7 @@ class AccountTest {
   private static final String JSON_ID = "\"id\": \"123\"";
   private static final String JSON_LAST_NAME = "\"lastName\": \"lastName\"";
   private static final String LAST_NAME = "lastName";
+  private static final String SECRET = "password";
   private static final String TOKEN = "token";
   private static final String VISUALIZATION = "service.visualization";
 
@@ -62,6 +63,9 @@ class AccountTest {
     when(decodedJWT.getClaim(EMAIL)).thenReturn(claim);
     when(httpClient.send(any(HttpRequest.class), eq(BodyHandlers.ofString())))
         .thenReturn(httpResponse);
+    when(httpResponse.body())
+        .thenReturn(
+            '{' + String.join(", ", JSON_EMAIL, JSON_FIRST_NAME, JSON_ID, JSON_LAST_NAME) + '}');
     when(httpResponse.statusCode()).thenReturn(OK.getStatusCode());
     when(jsonObject.getString(TOKEN)).thenReturn(TOKEN);
     when(jwtVerifier.verify(TOKEN)).thenReturn(decodedJWT);
@@ -70,10 +74,6 @@ class AccountTest {
 
   @Test
   void changePassword() throws IOException, InterruptedException {
-    when(httpResponse.body())
-        .thenReturn(
-            '{' + String.join(", ", JSON_EMAIL, JSON_FIRST_NAME, JSON_ID, JSON_LAST_NAME) + '}');
-
     assertThat(
             new AccountImpl(null, httpClient, properties)
                 .changePassword(httpSession, jsonObject, jwtVerifier))
@@ -98,7 +98,7 @@ class AccountTest {
     verify(httpSession).setAttribute(LAST_NAME, LAST_NAME);
     verifyNoMoreInteractions(httpSession);
 
-    verify(jsonObject).getString("password");
+    verify(jsonObject).getString(SECRET);
     verify(jsonObject).getString(TOKEN);
     verifyNoMoreInteractions(jsonObject);
 
@@ -131,7 +131,7 @@ class AccountTest {
     verifyZeroInteractions(httpResponse);
     verifyZeroInteractions(httpSession);
 
-    verify(jsonObject).getString("password");
+    verify(jsonObject).getString(SECRET);
     verify(jsonObject).getString(TOKEN);
     verifyNoMoreInteractions(jsonObject);
 
@@ -188,7 +188,7 @@ class AccountTest {
     verifyZeroInteractions(httpResponse);
     verifyZeroInteractions(httpSession);
 
-    verify(jsonObject).getString("password");
+    verify(jsonObject).getString(SECRET);
     verify(jsonObject).getString(TOKEN);
     verifyNoMoreInteractions(jsonObject);
 
@@ -224,7 +224,7 @@ class AccountTest {
 
     verifyZeroInteractions(httpSession);
 
-    verify(jsonObject).getString("password");
+    verify(jsonObject).getString(SECRET);
     verify(jsonObject).getString(TOKEN);
     verifyNoMoreInteractions(jsonObject);
 
@@ -260,7 +260,7 @@ class AccountTest {
 
     verifyZeroInteractions(httpSession);
 
-    verify(jsonObject).getString("password");
+    verify(jsonObject).getString(SECRET);
     verify(jsonObject).getString(TOKEN);
     verifyNoMoreInteractions(jsonObject);
 
@@ -294,7 +294,7 @@ class AccountTest {
 
     verifyZeroInteractions(httpSession);
 
-    verify(jsonObject).getString("password");
+    verify(jsonObject).getString(SECRET);
     verify(jsonObject).getString(TOKEN);
     verifyNoMoreInteractions(jsonObject);
 
@@ -328,12 +328,89 @@ class AccountTest {
 
     verifyZeroInteractions(httpSession);
 
-    verify(jsonObject).getString("password");
+    verify(jsonObject).getString(SECRET);
     verify(jsonObject).getString(TOKEN);
     verifyNoMoreInteractions(jsonObject);
 
     verify(jwtVerifier).verify(TOKEN);
     verifyNoMoreInteractions(jwtVerifier);
+
+    verify(properties).getProperty(VISUALIZATION);
+    verifyNoMoreInteractions(properties);
+  }
+
+  @Test
+  void logIn() throws IOException, InterruptedException {
+    assertThat(new AccountImpl(null, httpClient, properties).logIn(EMAIL, httpSession, SECRET))
+        .isEqualTo(OK.getStatusCode());
+
+    verify(httpClient).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
+    verifyNoMoreInteractions(httpClient);
+
+    verify(httpResponse).body();
+    verify(httpResponse).statusCode();
+    verifyNoMoreInteractions(httpResponse);
+
+    verify(httpSession).setAttribute(EMAIL, EMAIL);
+    verify(httpSession).setAttribute(FIRST_NAME, FIRST_NAME);
+    verify(httpSession).setAttribute("id", "123");
+    verify(httpSession).setAttribute(LAST_NAME, LAST_NAME);
+    verifyNoMoreInteractions(httpSession);
+
+    verify(properties).getProperty(VISUALIZATION);
+    verifyNoMoreInteractions(properties);
+  }
+
+  @Test
+  void logInWhenInterruptedException() throws IOException, InterruptedException {
+    when(httpClient.send(any(HttpRequest.class), eq(BodyHandlers.ofString())))
+        .thenThrow(new InterruptedException("test"));
+
+    assertThat(new AccountImpl(null, httpClient, properties).logIn(EMAIL, httpSession, SECRET))
+        .isEqualTo(INTERNAL_SERVER_ERROR.getStatusCode());
+
+    verify(httpClient).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
+    verifyNoMoreInteractions(httpClient);
+
+    verifyZeroInteractions(httpResponse);
+    verifyZeroInteractions(httpSession);
+
+    verify(properties).getProperty(VISUALIZATION);
+    verifyNoMoreInteractions(properties);
+  }
+
+  @Test
+  void logInWhenIoException() throws IOException, InterruptedException {
+    when(httpClient.send(any(HttpRequest.class), eq(BodyHandlers.ofString())))
+        .thenThrow(new IOException("test"));
+
+    assertThat(new AccountImpl(null, httpClient, properties).logIn(EMAIL, httpSession, SECRET))
+        .isEqualTo(INTERNAL_SERVER_ERROR.getStatusCode());
+
+    verify(httpClient).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
+    verifyNoMoreInteractions(httpClient);
+
+    verifyZeroInteractions(httpResponse);
+    verifyZeroInteractions(httpSession);
+
+    verify(properties).getProperty(VISUALIZATION);
+    verifyNoMoreInteractions(properties);
+  }
+
+  @Test
+  void logInWhenNotOk() throws IOException, InterruptedException {
+    when(httpResponse.statusCode()).thenReturn(NO_CONTENT.getStatusCode());
+
+    assertThat(new AccountImpl(null, httpClient, properties).logIn(EMAIL, httpSession, SECRET))
+        .isEqualTo(NO_CONTENT.getStatusCode());
+
+    verify(httpClient).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
+    verifyNoMoreInteractions(httpClient);
+
+    verify(httpResponse).statusCode();
+    verifyNoMoreInteractions(httpResponse);
+
+    verifyZeroInteractions(httpSession);
 
     verify(properties).getProperty(VISUALIZATION);
     verifyNoMoreInteractions(properties);
