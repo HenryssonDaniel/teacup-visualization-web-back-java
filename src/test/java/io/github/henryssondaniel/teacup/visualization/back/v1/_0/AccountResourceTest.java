@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
+import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.interfaces.JWTVerifier;
 import java.util.List;
 import java.util.Map.Entry;
@@ -32,6 +33,7 @@ class AccountResourceTest {
   private static final String JSON_PASSWORD = "\"password\": \"password\"";
   private static final String SECRET = "password";
   private final Account account = mock(Account.class);
+  private final Algorithm algorithm = mock(Algorithm.class);
   private final HttpServletRequest httpServletRequest = mock(HttpServletRequest.class);
   private final HttpSession httpSession = mock(HttpSession.class);
   private final Properties properties = mock(Properties.class);
@@ -159,6 +161,45 @@ class AccountResourceTest {
   @Test
   void logOutWhenNotAuthorized() {
     logOut(Status.UNAUTHORIZED);
+
+    verify(httpServletRequest).getSession();
+    verifyNoMoreInteractions(httpServletRequest);
+
+    verify(httpSession).getAttribute(ID);
+    verifyNoMoreInteractions(httpSession);
+  }
+
+  @Test
+  void recover() {
+    when(account.recover(algorithm, EMAIL)).thenReturn(Status.OK.getStatusCode());
+
+    try (var response =
+        new AccountResource(account, algorithm, null, null)
+            .recover('{' + JSON_EMAIL + '}', httpServletRequest)) {
+      verifyResponse(response, Status.OK);
+    }
+
+    verify(account).recover(algorithm, EMAIL);
+    verifyNoMoreInteractions(account);
+
+    verify(httpServletRequest).getSession();
+    verifyNoMoreInteractions(httpServletRequest);
+
+    verify(httpSession).getAttribute(ID);
+    verifyNoMoreInteractions(httpSession);
+  }
+
+  @Test
+  void recoverWhenAuthorized() {
+    authorize();
+
+    try (var response =
+        new AccountResource(account, algorithm, null, null)
+            .recover('{' + JSON_EMAIL + '}', httpServletRequest)) {
+      verifyResponse(response, Status.UNAUTHORIZED);
+    }
+
+    verifyZeroInteractions(account);
 
     verify(httpServletRequest).getSession();
     verifyNoMoreInteractions(httpServletRequest);
