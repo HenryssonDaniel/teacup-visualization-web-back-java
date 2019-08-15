@@ -600,60 +600,14 @@ class AccountTest {
   void signUpWhenInterruptedException() throws IOException, InterruptedException {
     when(httpClient.send(any(HttpRequest.class), eq(BodyHandlers.ofString())))
         .thenThrow(INTERRUPTED_EXCEPTION);
-
-    assertThat(
-            new AccountImpl(emailClient, httpClient, properties)
-                .signUp(algorithm, httpServletRequest, jsonObject))
-        .isEqualTo(INTERNAL_SERVER_ERROR.getStatusCode());
-
-    verifyZeroInteractions(algorithm);
-    verifyZeroInteractions(emailClient);
-
-    verify(httpClient).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
-    verifyNoMoreInteractions(httpClient);
-
-    verifyZeroInteractions(httpResponse);
-    verifyZeroInteractions(httpServletRequest);
-    verifyZeroInteractions(httpSession);
-
-    verify(jsonObject).getString(EMAIL);
-    verify(jsonObject).getString(FIRST_NAME);
-    verify(jsonObject).getString(LAST_NAME);
-    verify(jsonObject).getString(SECRET);
-    verifyNoMoreInteractions(jsonObject);
-
-    verify(properties).getProperty(VISUALIZATION);
-    verifyNoMoreInteractions(properties);
+    verifySignUpNoLogInError(INTERNAL_SERVER_ERROR.getStatusCode());
   }
 
   @Test
   void signUpWhenIoException() throws IOException, InterruptedException {
     when(httpClient.send(any(HttpRequest.class), eq(BodyHandlers.ofString())))
         .thenThrow(IO_EXCEPTION);
-
-    assertThat(
-            new AccountImpl(emailClient, httpClient, properties)
-                .signUp(algorithm, httpServletRequest, jsonObject))
-        .isEqualTo(INTERNAL_SERVER_ERROR.getStatusCode());
-
-    verifyZeroInteractions(algorithm);
-    verifyZeroInteractions(emailClient);
-
-    verify(httpClient).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
-    verifyNoMoreInteractions(httpClient);
-
-    verifyZeroInteractions(httpResponse);
-    verifyZeroInteractions(httpServletRequest);
-    verifyZeroInteractions(httpSession);
-
-    verify(jsonObject).getString(EMAIL);
-    verify(jsonObject).getString(FIRST_NAME);
-    verify(jsonObject).getString(LAST_NAME);
-    verify(jsonObject).getString(SECRET);
-    verifyNoMoreInteractions(jsonObject);
-
-    verify(properties).getProperty(VISUALIZATION);
-    verifyNoMoreInteractions(properties);
+    verifySignUpNoLogInError(INTERNAL_SERVER_ERROR.getStatusCode());
   }
 
   @Test
@@ -662,7 +616,6 @@ class AccountTest {
     when(httpClient.send(any(HttpRequest.class), eq(BodyHandlers.ofString())))
         .thenReturn(httpResponse)
         .thenThrow(INTERRUPTED_EXCEPTION);
-
     verifySignUpLogInError(INTERNAL_SERVER_ERROR.getStatusCode());
   }
 
@@ -675,7 +628,7 @@ class AccountTest {
   @Test
   void signUpWhenNotOk() throws IOException, InterruptedException {
     when(httpResponse.statusCode()).thenReturn(NO_CONTENT.getStatusCode());
-    verifySignUpNoLogIn(NO_CONTENT.getStatusCode());
+    verifySignUpNoLogInNotOk(NO_CONTENT.getStatusCode());
   }
 
   @Test
@@ -811,6 +764,18 @@ class AccountTest {
     verifyZeroInteractions(emailClient);
     verifyZeroInteractions(httpServletRequest);
     verifyZeroInteractions(httpSession);
+  }
+
+  private void verifySignUpNoLogInError(int statusCode) throws IOException, InterruptedException {
+    verifySignUpNoLogIn(statusCode);
+    verifyZeroInteractions(httpResponse);
+  }
+
+  private void verifySignUpNoLogInNotOk(int statusCode) throws IOException, InterruptedException {
+    verifySignUpNoLogIn(statusCode);
+
+    verify(httpResponse).statusCode();
+    verifyNoMoreInteractions(httpResponse);
   }
 
   private void verifyVerify(String message) throws IOException, InterruptedException {
