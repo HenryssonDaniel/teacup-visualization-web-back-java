@@ -194,35 +194,7 @@ class AccountTest {
 
   @Test
   void recover() throws IOException, InterruptedException, MessagingException {
-    assertThat(new AccountImpl(emailClient, httpClient, properties).recover(algorithm, EMAIL))
-        .isEqualTo(OK.getStatusCode());
-
-    verify(algorithm).getName();
-    verify(algorithm).getSigningKeyId();
-    verify(algorithm).sign(any(byte[].class), any(byte[].class));
-    verifyNoMoreInteractions(algorithm);
-
-    verify(emailClient)
-        .send(
-            startsWith(RECOVER_CODE),
-            any(Message.class),
-            eq(RECOVER),
-            eq(EMAIL),
-            any(Transport.class));
-    verifyNoMoreInteractions(emailClient);
-
-    verify(httpClient).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
-    verifyNoMoreInteractions(httpClient);
-
-    verify(httpResponse).statusCode();
-    verifyNoMoreInteractions(httpResponse);
-
-    verifyZeroInteractions(httpSession);
-
-    verify(properties).getProperty(VISUALIZATION);
-    verify(properties).getProperty(SMTP_HOST);
-    verify(properties).getProperty(SMTP_PORT);
-    verifyNoMoreInteractions(properties);
+    verifyRecoverNoException();
   }
 
   @Test
@@ -235,78 +207,21 @@ class AccountTest {
             eq(RECOVER),
             eq(EMAIL),
             any(Transport.class));
-
-    assertThat(new AccountImpl(emailClient, httpClient, properties).recover(algorithm, EMAIL))
-        .isEqualTo(OK.getStatusCode());
-
-    verify(algorithm).getName();
-    verify(algorithm).getSigningKeyId();
-    verify(algorithm).sign(any(byte[].class), any(byte[].class));
-    verifyNoMoreInteractions(algorithm);
-
-    verify(emailClient)
-        .send(
-            startsWith(RECOVER_CODE),
-            any(Message.class),
-            eq(RECOVER),
-            eq(EMAIL),
-            any(Transport.class));
-    verifyNoMoreInteractions(emailClient);
-
-    verify(httpClient).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
-    verifyNoMoreInteractions(httpClient);
-
-    verify(httpResponse).statusCode();
-    verifyNoMoreInteractions(httpResponse);
-
-    verifyZeroInteractions(httpSession);
-
-    verify(properties).getProperty(VISUALIZATION);
-    verify(properties).getProperty(SMTP_HOST);
-    verify(properties).getProperty(SMTP_PORT);
-    verifyNoMoreInteractions(properties);
+    verifyRecoverNoException();
   }
 
   @Test
   void recoverWhenInterruptedException() throws IOException, InterruptedException {
     when(httpClient.send(any(HttpRequest.class), eq(BodyHandlers.ofString())))
         .thenThrow(INTERRUPTED_EXCEPTION);
-
-    assertThat(new AccountImpl(emailClient, httpClient, properties).recover(algorithm, EMAIL))
-        .isEqualTo(INTERNAL_SERVER_ERROR.getStatusCode());
-
-    verifyZeroInteractions(algorithm);
-    verifyZeroInteractions(emailClient);
-
-    verify(httpClient).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
-    verifyNoMoreInteractions(httpClient);
-
-    verifyZeroInteractions(httpResponse);
-    verifyZeroInteractions(httpSession);
-
-    verify(properties).getProperty(VISUALIZATION);
-    verifyNoMoreInteractions(properties);
+    verifyRecoverException();
   }
 
   @Test
   void recoverWhenIoException() throws IOException, InterruptedException {
     when(httpClient.send(any(HttpRequest.class), eq(BodyHandlers.ofString())))
         .thenThrow(IO_EXCEPTION);
-
-    assertThat(new AccountImpl(emailClient, httpClient, properties).recover(algorithm, EMAIL))
-        .isEqualTo(INTERNAL_SERVER_ERROR.getStatusCode());
-
-    verifyZeroInteractions(algorithm);
-    verifyZeroInteractions(emailClient);
-
-    verify(httpClient).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
-    verifyNoMoreInteractions(httpClient);
-
-    verifyZeroInteractions(httpResponse);
-    verifyZeroInteractions(httpSession);
-
-    verify(properties).getProperty(VISUALIZATION);
-    verifyNoMoreInteractions(properties);
+    verifyRecoverException();
   }
 
   @Test
@@ -529,6 +444,53 @@ class AccountTest {
     verifyLogIn(statusCode);
 
     if (statusCode == OK.getStatusCode()) verify(httpResponse).body();
+    verify(httpResponse).statusCode();
+    verifyNoMoreInteractions(httpResponse);
+  }
+
+  private void verifyRecover(int statusCode) throws IOException, InterruptedException {
+    assertThat(new AccountImpl(emailClient, httpClient, properties).recover(algorithm, EMAIL))
+        .isEqualTo(statusCode);
+
+    verify(httpClient).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
+    verifyNoMoreInteractions(httpClient);
+
+    verifyZeroInteractions(httpSession);
+
+    verify(properties).getProperty(VISUALIZATION);
+    if (statusCode == OK.getStatusCode()) {
+      verify(properties).getProperty(SMTP_HOST);
+      verify(properties).getProperty(SMTP_PORT);
+    }
+    verifyNoMoreInteractions(properties);
+  }
+
+  private void verifyRecoverException() throws IOException, InterruptedException {
+    verifyRecover(INTERNAL_SERVER_ERROR.getStatusCode());
+
+    verifyZeroInteractions(algorithm);
+    verifyZeroInteractions(emailClient);
+    verifyZeroInteractions(httpResponse);
+  }
+
+  private void verifyRecoverNoException()
+      throws MessagingException, IOException, InterruptedException {
+    verifyRecover(OK.getStatusCode());
+
+    verify(algorithm).getName();
+    verify(algorithm).getSigningKeyId();
+    verify(algorithm).sign(any(byte[].class), any(byte[].class));
+    verifyNoMoreInteractions(algorithm);
+
+    verify(emailClient)
+        .send(
+            startsWith(RECOVER_CODE),
+            any(Message.class),
+            eq(RECOVER),
+            eq(EMAIL),
+            any(Transport.class));
+    verifyNoMoreInteractions(emailClient);
+
     verify(httpResponse).statusCode();
     verifyNoMoreInteractions(httpResponse);
   }
