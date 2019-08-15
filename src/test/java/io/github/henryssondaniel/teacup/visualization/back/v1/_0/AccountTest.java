@@ -40,7 +40,6 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 class AccountTest {
-
   private static final String EMAIL = "email";
   private static final String FIRST_NAME = "firstName";
   private static final String JSON_EMAIL = "\"email\": \"email\"";
@@ -66,6 +65,7 @@ class AccountTest {
   private final JSONObject jsonObject = mock(JSONObject.class);
   private final JWTVerifier jwtVerifier = mock(JWTVerifier.class);
   private final Properties properties = mock(Properties.class);
+
   @Mock private HttpResponse<String> httpResponse;
 
   @BeforeEach
@@ -874,6 +874,72 @@ class AccountTest {
     verify(jsonObject).getString(LAST_NAME);
     verify(jsonObject).getString(SECRET);
     verifyNoMoreInteractions(jsonObject);
+
+    verify(properties).getProperty(VISUALIZATION);
+    verifyNoMoreInteractions(properties);
+  }
+
+  @Test
+  void verifyAccount() throws IOException, InterruptedException {
+    assertThat(new AccountImpl(httpClient, properties).verify(EMAIL))
+        .isEqualTo("The account have been verified");
+
+    verify(httpClient).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
+    verifyNoMoreInteractions(httpClient);
+
+    verify(httpResponse).statusCode();
+    verifyNoMoreInteractions(httpResponse);
+
+    verify(properties).getProperty(VISUALIZATION);
+    verifyNoMoreInteractions(properties);
+  }
+
+  @Test
+  void verifyWhenInterruptedException() throws IOException, InterruptedException {
+    when(httpClient.send(any(HttpRequest.class), eq(BodyHandlers.ofString())))
+        .thenThrow(new InterruptedException("test"));
+
+    assertThat(new AccountImpl(httpClient, properties).verify(EMAIL))
+        .isEqualTo("The account could not be verified, please try again later");
+
+    verify(httpClient).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
+    verifyNoMoreInteractions(httpClient);
+
+    verifyZeroInteractions(httpResponse);
+
+    verify(properties).getProperty(VISUALIZATION);
+    verifyNoMoreInteractions(properties);
+  }
+
+  @Test
+  void verifyWhenIoException() throws IOException, InterruptedException {
+    when(httpClient.send(any(HttpRequest.class), eq(BodyHandlers.ofString())))
+        .thenThrow(new IOException("test"));
+
+    assertThat(new AccountImpl(httpClient, properties).verify(EMAIL))
+        .isEqualTo("The account could not be verified, please try again later");
+
+    verify(httpClient).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
+    verifyNoMoreInteractions(httpClient);
+
+    verifyZeroInteractions(httpResponse);
+
+    verify(properties).getProperty(VISUALIZATION);
+    verifyNoMoreInteractions(properties);
+  }
+
+  @Test
+  void verifyWhenNotOk() throws IOException, InterruptedException {
+    when(httpResponse.statusCode()).thenReturn(NO_CONTENT.getStatusCode());
+
+    assertThat(new AccountImpl(httpClient, properties).verify(EMAIL))
+        .isEqualTo("The account could not be verified, please try again later");
+
+    verify(httpClient).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
+    verifyNoMoreInteractions(httpClient);
+
+    verify(httpResponse).statusCode();
+    verifyNoMoreInteractions(httpResponse);
 
     verify(properties).getProperty(VISUALIZATION);
     verifyNoMoreInteractions(properties);
