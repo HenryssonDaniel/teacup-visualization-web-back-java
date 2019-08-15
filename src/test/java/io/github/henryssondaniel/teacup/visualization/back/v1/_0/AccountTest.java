@@ -33,6 +33,7 @@ import javax.mail.Transport;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.StatusType;
 import org.json.JSONObject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,9 +45,6 @@ class AccountTest {
   private static final String ERROR_VERIFY =
       "The account could not be verified, please try again later";
   private static final String FIRST_NAME = "firstName";
-  private static final InterruptedException INTERRUPTED_EXCEPTION =
-      new InterruptedException("test");
-  private static final IOException IO_EXCEPTION = new IOException("test");
   private static final String JSON_EMAIL = "\"email\": \"email\"";
   private static final String JSON_FIRST_NAME = "\"firstName\": \"firstName\"";
   private static final String JSON_ID = "\"id\": \"123\"";
@@ -57,7 +55,14 @@ class AccountTest {
   private static final String SECRET = "password";
   private static final String SMTP_HOST = "smtp.host";
   private static final String SMTP_PORT = "smtp.port";
+  private static final String TEST = "test";
+  private static final InterruptedException INTERRUPTED_EXCEPTION = new InterruptedException(TEST);
+  private static final IOException IO_EXCEPTION = new IOException(TEST);
+  private static final MessagingException MESSAGING_EXCEPTION = new MessagingException(TEST);
   private static final String TOKEN = "token";
+  private static final String VERIFY = "Verify";
+  private static final String VERIFY_SUCCESS =
+      "Please verify your account by clicking here: localhost:100/api/account/verify/";
   private static final String VISUALIZATION = "service.visualization";
 
   private final Algorithm algorithm = mock(Algorithm.class);
@@ -91,129 +96,33 @@ class AccountTest {
 
   @Test
   void changePassword() throws IOException, InterruptedException {
-    assertThat(
-            new AccountImpl(httpClient, properties)
-                .changePassword(httpSession, jsonObject, jwtVerifier))
-        .isEqualToComparingFieldByFieldRecursively(Response.status(OK));
-
-    verify(claim).asString();
-    verifyNoMoreInteractions(claim);
-
-    verify(decodedJWT).getClaim(EMAIL);
-    verifyNoMoreInteractions(decodedJWT);
-
-    verify(httpClient, times(2)).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
-    verifyNoMoreInteractions(httpClient);
-
-    verify(httpResponse).body();
-    verify(httpResponse, times(2)).statusCode();
-    verifyNoMoreInteractions(httpResponse);
+    verifyChangePasswordLogIn(OK);
 
     verify(httpSession).setAttribute(EMAIL, EMAIL);
     verify(httpSession).setAttribute(FIRST_NAME, FIRST_NAME);
     verify(httpSession).setAttribute("id", "123");
     verify(httpSession).setAttribute(LAST_NAME, LAST_NAME);
     verifyNoMoreInteractions(httpSession);
-
-    verify(jsonObject).getString(SECRET);
-    verify(jsonObject).getString(TOKEN);
-    verifyNoMoreInteractions(jsonObject);
-
-    verify(jwtVerifier).verify(TOKEN);
-    verifyNoMoreInteractions(jwtVerifier);
-
-    verify(properties, times(2)).getProperty(VISUALIZATION);
-    verifyNoMoreInteractions(properties);
   }
 
   @Test
   void changePasswordWhenInterruptedException() throws IOException, InterruptedException {
     when(httpClient.send(any(HttpRequest.class), eq(BodyHandlers.ofString())))
         .thenThrow(INTERRUPTED_EXCEPTION);
-
-    assertThat(
-            new AccountImpl(httpClient, properties)
-                .changePassword(httpSession, jsonObject, jwtVerifier))
-        .isEqualToComparingFieldByFieldRecursively(Response.status(INTERNAL_SERVER_ERROR));
-
-    verify(claim).asString();
-    verifyNoMoreInteractions(claim);
-
-    verify(decodedJWT).getClaim(EMAIL);
-    verifyNoMoreInteractions(decodedJWT);
-
-    verify(httpClient).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
-    verifyNoMoreInteractions(httpClient);
-
-    verifyZeroInteractions(httpResponse);
-    verifyZeroInteractions(httpSession);
-
-    verify(jsonObject).getString(SECRET);
-    verify(jsonObject).getString(TOKEN);
-    verifyNoMoreInteractions(jsonObject);
-
-    verify(jwtVerifier).verify(TOKEN);
-    verifyNoMoreInteractions(jwtVerifier);
-
-    verify(properties).getProperty(VISUALIZATION);
-    verifyNoMoreInteractions(properties);
+    verifyChangePasswordNoLogInError();
   }
 
   @Test
   void changePasswordWhenInvalidToken() {
-    when(jwtVerifier.verify(TOKEN)).thenThrow(new JWTVerificationException("test"));
-
-    assertThat(
-            new AccountImpl(httpClient, properties)
-                .changePassword(httpSession, jsonObject, jwtVerifier))
-        .isEqualToComparingFieldByFieldRecursively(Response.status(FORBIDDEN));
-
-    verifyZeroInteractions(claim);
-    verifyZeroInteractions(decodedJWT);
-    verifyZeroInteractions(httpClient);
-    verifyZeroInteractions(httpResponse);
-    verifyZeroInteractions(httpSession);
-
-    verify(jsonObject).getString(TOKEN);
-    verifyNoMoreInteractions(jsonObject);
-
-    verify(jwtVerifier).verify(TOKEN);
-    verifyNoMoreInteractions(jwtVerifier);
-
-    verifyZeroInteractions(properties);
+    when(jwtVerifier.verify(TOKEN)).thenThrow(new JWTVerificationException(TEST));
+    verifyChangePasswordInvalid();
   }
 
   @Test
   void changePasswordWhenIoException() throws IOException, InterruptedException {
     when(httpClient.send(any(HttpRequest.class), eq(BodyHandlers.ofString())))
         .thenThrow(IO_EXCEPTION);
-
-    assertThat(
-            new AccountImpl(httpClient, properties)
-                .changePassword(httpSession, jsonObject, jwtVerifier))
-        .isEqualToComparingFieldByFieldRecursively(Response.status(INTERNAL_SERVER_ERROR));
-
-    verify(claim).asString();
-    verifyNoMoreInteractions(claim);
-
-    verify(decodedJWT).getClaim(EMAIL);
-    verifyNoMoreInteractions(decodedJWT);
-
-    verify(httpClient).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
-    verifyNoMoreInteractions(httpClient);
-
-    verifyZeroInteractions(httpResponse);
-    verifyZeroInteractions(httpSession);
-
-    verify(jsonObject).getString(SECRET);
-    verify(jsonObject).getString(TOKEN);
-    verifyNoMoreInteractions(jsonObject);
-
-    verify(jwtVerifier).verify(TOKEN);
-    verifyNoMoreInteractions(jwtVerifier);
-
-    verify(properties).getProperty(VISUALIZATION);
-    verifyNoMoreInteractions(properties);
+    verifyChangePasswordNoLogInError();
   }
 
   @Test
@@ -221,35 +130,7 @@ class AccountTest {
     when(httpClient.send(any(HttpRequest.class), eq(BodyHandlers.ofString())))
         .thenReturn(httpResponse)
         .thenThrow(INTERRUPTED_EXCEPTION);
-
-    assertThat(
-            new AccountImpl(httpClient, properties)
-                .changePassword(httpSession, jsonObject, jwtVerifier))
-        .isEqualToComparingFieldByFieldRecursively(Response.status(INTERNAL_SERVER_ERROR));
-
-    verify(claim).asString();
-    verifyNoMoreInteractions(claim);
-
-    verify(decodedJWT).getClaim(EMAIL);
-    verifyNoMoreInteractions(decodedJWT);
-
-    verify(httpClient, times(2)).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
-    verifyNoMoreInteractions(httpClient);
-
-    verify(httpResponse).statusCode();
-    verifyNoMoreInteractions(httpResponse);
-
-    verifyZeroInteractions(httpSession);
-
-    verify(jsonObject).getString(SECRET);
-    verify(jsonObject).getString(TOKEN);
-    verifyNoMoreInteractions(jsonObject);
-
-    verify(jwtVerifier).verify(TOKEN);
-    verifyNoMoreInteractions(jwtVerifier);
-
-    verify(properties, times(2)).getProperty(VISUALIZATION);
-    verifyNoMoreInteractions(properties);
+    verifyChangePasswordLogInError();
   }
 
   @Test
@@ -257,103 +138,25 @@ class AccountTest {
     when(httpClient.send(any(HttpRequest.class), eq(BodyHandlers.ofString())))
         .thenReturn(httpResponse)
         .thenThrow(IO_EXCEPTION);
-
-    assertThat(
-            new AccountImpl(httpClient, properties)
-                .changePassword(httpSession, jsonObject, jwtVerifier))
-        .isEqualToComparingFieldByFieldRecursively(Response.status(INTERNAL_SERVER_ERROR));
-
-    verify(claim).asString();
-    verifyNoMoreInteractions(claim);
-
-    verify(decodedJWT).getClaim(EMAIL);
-    verifyNoMoreInteractions(decodedJWT);
-
-    verify(httpClient, times(2)).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
-    verifyNoMoreInteractions(httpClient);
-
-    verify(httpResponse).statusCode();
-    verifyNoMoreInteractions(httpResponse);
-
-    verifyZeroInteractions(httpSession);
-
-    verify(jsonObject).getString(SECRET);
-    verify(jsonObject).getString(TOKEN);
-    verifyNoMoreInteractions(jsonObject);
-
-    verify(jwtVerifier).verify(TOKEN);
-    verifyNoMoreInteractions(jwtVerifier);
-
-    verify(properties, times(2)).getProperty(VISUALIZATION);
-    verifyNoMoreInteractions(properties);
+    verifyChangePasswordLogInError();
   }
 
   @Test
   void changePasswordWhenLogInNotOk() throws IOException, InterruptedException {
     when(httpResponse.statusCode()).thenReturn(OK.getStatusCode(), NO_CONTENT.getStatusCode());
 
-    assertThat(
-            new AccountImpl(httpClient, properties)
-                .changePassword(httpSession, jsonObject, jwtVerifier))
-        .isEqualToComparingFieldByFieldRecursively(Response.status(NO_CONTENT));
-
-    verify(claim).asString();
-    verifyNoMoreInteractions(claim);
-
-    verify(decodedJWT).getClaim(EMAIL);
-    verifyNoMoreInteractions(decodedJWT);
-
-    verify(httpClient, times(2)).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
-    verifyNoMoreInteractions(httpClient);
-
-    verify(httpResponse, times(2)).statusCode();
-    verifyNoMoreInteractions(httpResponse);
-
+    verifyChangePasswordLogIn(NO_CONTENT);
     verifyZeroInteractions(httpSession);
-
-    verify(jsonObject).getString(SECRET);
-    verify(jsonObject).getString(TOKEN);
-    verifyNoMoreInteractions(jsonObject);
-
-    verify(jwtVerifier).verify(TOKEN);
-    verifyNoMoreInteractions(jwtVerifier);
-
-    verify(properties, times(2)).getProperty(VISUALIZATION);
-    verifyNoMoreInteractions(properties);
   }
 
   @Test
   void changePasswordWhenNotOk() throws IOException, InterruptedException {
     when(httpResponse.statusCode()).thenReturn(NO_CONTENT.getStatusCode());
 
-    assertThat(
-            new AccountImpl(httpClient, properties)
-                .changePassword(httpSession, jsonObject, jwtVerifier))
-        .isEqualToComparingFieldByFieldRecursively(Response.status(NO_CONTENT));
-
-    verify(claim).asString();
-    verifyNoMoreInteractions(claim);
-
-    verify(decodedJWT).getClaim(EMAIL);
-    verifyNoMoreInteractions(decodedJWT);
-
-    verify(httpClient).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
-    verifyNoMoreInteractions(httpClient);
+    verifyChangePasswordNoLogIn(NO_CONTENT);
 
     verify(httpResponse).statusCode();
     verifyNoMoreInteractions(httpResponse);
-
-    verifyZeroInteractions(httpSession);
-
-    verify(jsonObject).getString(SECRET);
-    verify(jsonObject).getString(TOKEN);
-    verifyNoMoreInteractions(jsonObject);
-
-    verify(jwtVerifier).verify(TOKEN);
-    verifyNoMoreInteractions(jwtVerifier);
-
-    verify(properties).getProperty(VISUALIZATION);
-    verifyNoMoreInteractions(properties);
   }
 
   @Test
@@ -468,7 +271,7 @@ class AccountTest {
 
   @Test
   void recoverWhenEmailError() throws IOException, InterruptedException, MessagingException {
-    doThrow(new MessagingException("test"))
+    doThrow(MESSAGING_EXCEPTION)
         .when(emailClient)
         .send(
             startsWith(RECOVER_CODE),
@@ -580,13 +383,12 @@ class AccountTest {
   @Test
   void signUpWhenEmailErrorLogInIoException()
       throws IOException, InterruptedException, MessagingException {
-    doThrow(new MessagingException("test"))
+    doThrow(MESSAGING_EXCEPTION)
         .when(emailClient)
         .send(
-            startsWith(
-                "Please verify your account by clicking here: localhost:100/api/account/verify/"),
+            startsWith(VERIFY_SUCCESS),
             any(Message.class),
-            eq("Verify"),
+            eq(VERIFY),
             eq(EMAIL),
             any(Transport.class));
     when(httpClient.send(any(HttpRequest.class), eq(BodyHandlers.ofString())))
@@ -680,6 +482,75 @@ class AccountTest {
     when(properties.getProperty(SMTP_PORT)).thenReturn("8080");
   }
 
+  private void verifyChangePassword(StatusType statusType) {
+    assertThat(
+            new AccountImpl(httpClient, properties)
+                .changePassword(httpSession, jsonObject, jwtVerifier))
+        .isEqualToComparingFieldByFieldRecursively(Response.status(statusType));
+
+    verify(jwtVerifier).verify(TOKEN);
+    verifyNoMoreInteractions(jwtVerifier);
+  }
+
+  private void verifyChangePasswordInvalid() {
+    verifyChangePassword(FORBIDDEN);
+
+    verifyZeroInteractions(claim);
+    verifyZeroInteractions(decodedJWT);
+    verifyZeroInteractions(httpClient);
+    verifyZeroInteractions(httpResponse);
+    verifyZeroInteractions(httpSession);
+    verifyZeroInteractions(properties);
+  }
+
+  private void verifyChangePasswordLogIn(StatusType statusType)
+      throws IOException, InterruptedException {
+    var times = 2;
+
+    verifyChangePasswordValid(statusType, times);
+
+    if (statusType == OK) verify(httpResponse).body();
+    verify(httpResponse, times(times)).statusCode();
+    verifyNoMoreInteractions(httpResponse);
+  }
+
+  private void verifyChangePasswordLogInError() throws IOException, InterruptedException {
+    verifyChangePasswordValid(INTERNAL_SERVER_ERROR, 2);
+    verifyZeroInteractions(httpSession);
+  }
+
+  private void verifyChangePasswordNoLogIn(StatusType statusType)
+      throws IOException, InterruptedException {
+    verifyChangePasswordValid(statusType, 1);
+    verifyZeroInteractions(httpSession);
+  }
+
+  private void verifyChangePasswordNoLogInError() throws IOException, InterruptedException {
+    verifyChangePasswordNoLogIn(INTERNAL_SERVER_ERROR);
+    verifyZeroInteractions(httpResponse);
+  }
+
+  private void verifyChangePasswordValid(StatusType statusType, int times)
+      throws IOException, InterruptedException {
+    verifyChangePassword(statusType);
+
+    verify(claim).asString();
+    verifyNoMoreInteractions(claim);
+
+    verify(decodedJWT).getClaim(EMAIL);
+    verifyNoMoreInteractions(decodedJWT);
+
+    verify(httpClient, times(times)).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
+    verifyNoMoreInteractions(httpClient);
+
+    verify(jsonObject).getString(SECRET);
+    verify(jsonObject).getString(TOKEN);
+    verifyNoMoreInteractions(jsonObject);
+
+    verify(properties, times(times)).getProperty(VISUALIZATION);
+    verifyNoMoreInteractions(properties);
+  }
+
   private void verifySignUp(int statusCode, int times) throws IOException, InterruptedException {
     assertThat(
             new AccountImpl(emailClient, httpClient, properties)
@@ -716,10 +587,9 @@ class AccountTest {
 
     verify(emailClient)
         .send(
-            startsWith(
-                "Please verify your account by clicking here: localhost:100/api/account/verify/"),
+            startsWith(VERIFY_SUCCESS),
             any(Message.class),
-            eq("Verify"),
+            eq(VERIFY),
             eq(EMAIL),
             any(Transport.class));
     verifyNoMoreInteractions(emailClient);
