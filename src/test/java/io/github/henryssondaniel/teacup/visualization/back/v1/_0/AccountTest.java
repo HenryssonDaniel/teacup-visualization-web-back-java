@@ -161,79 +161,35 @@ class AccountTest {
 
   @Test
   void logIn() throws IOException, InterruptedException {
-    assertThat(new AccountImpl(httpClient, properties).logIn(EMAIL, httpSession, SECRET))
-        .isEqualTo(OK.getStatusCode());
-
-    verify(httpClient).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
-    verifyNoMoreInteractions(httpClient);
-
-    verify(httpResponse).body();
-    verify(httpResponse).statusCode();
-    verifyNoMoreInteractions(httpResponse);
+    verifyLogInNoException(OK.getStatusCode());
 
     verify(httpSession).setAttribute(EMAIL, EMAIL);
     verify(httpSession).setAttribute(FIRST_NAME, FIRST_NAME);
     verify(httpSession).setAttribute("id", "123");
     verify(httpSession).setAttribute(LAST_NAME, LAST_NAME);
     verifyNoMoreInteractions(httpSession);
-
-    verify(properties).getProperty(VISUALIZATION);
-    verifyNoMoreInteractions(properties);
   }
 
   @Test
   void logInWhenInterruptedException() throws IOException, InterruptedException {
     when(httpClient.send(any(HttpRequest.class), eq(BodyHandlers.ofString())))
         .thenThrow(INTERRUPTED_EXCEPTION);
-
-    assertThat(new AccountImpl(httpClient, properties).logIn(EMAIL, httpSession, SECRET))
-        .isEqualTo(INTERNAL_SERVER_ERROR.getStatusCode());
-
-    verify(httpClient).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
-    verifyNoMoreInteractions(httpClient);
-
-    verifyZeroInteractions(httpResponse);
-    verifyZeroInteractions(httpSession);
-
-    verify(properties).getProperty(VISUALIZATION);
-    verifyNoMoreInteractions(properties);
+    verifyLogInError(INTERNAL_SERVER_ERROR.getStatusCode());
   }
 
   @Test
   void logInWhenIoException() throws IOException, InterruptedException {
     when(httpClient.send(any(HttpRequest.class), eq(BodyHandlers.ofString())))
         .thenThrow(IO_EXCEPTION);
-
-    assertThat(new AccountImpl(httpClient, properties).logIn(EMAIL, httpSession, SECRET))
-        .isEqualTo(INTERNAL_SERVER_ERROR.getStatusCode());
-
-    verify(httpClient).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
-    verifyNoMoreInteractions(httpClient);
-
-    verifyZeroInteractions(httpResponse);
-    verifyZeroInteractions(httpSession);
-
-    verify(properties).getProperty(VISUALIZATION);
-    verifyNoMoreInteractions(properties);
+    verifyLogInError(INTERNAL_SERVER_ERROR.getStatusCode());
   }
 
   @Test
   void logInWhenNotOk() throws IOException, InterruptedException {
     when(httpResponse.statusCode()).thenReturn(NO_CONTENT.getStatusCode());
 
-    assertThat(new AccountImpl(httpClient, properties).logIn(EMAIL, httpSession, SECRET))
-        .isEqualTo(NO_CONTENT.getStatusCode());
-
-    verify(httpClient).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
-    verifyNoMoreInteractions(httpClient);
-
-    verify(httpResponse).statusCode();
-    verifyNoMoreInteractions(httpResponse);
-
+    verifyLogInNoException(NO_CONTENT.getStatusCode());
     verifyZeroInteractions(httpSession);
-
-    verify(properties).getProperty(VISUALIZATION);
-    verifyNoMoreInteractions(properties);
   }
 
   @Test
@@ -549,6 +505,32 @@ class AccountTest {
 
     verify(properties, times(times)).getProperty(VISUALIZATION);
     verifyNoMoreInteractions(properties);
+  }
+
+  private void verifyLogIn(int statusCode) throws IOException, InterruptedException {
+    assertThat(new AccountImpl(httpClient, properties).logIn(EMAIL, httpSession, SECRET))
+        .isEqualTo(statusCode);
+
+    verify(httpClient).send(any(HttpRequest.class), eq(BodyHandlers.ofString()));
+    verifyNoMoreInteractions(httpClient);
+
+    verify(properties).getProperty(VISUALIZATION);
+    verifyNoMoreInteractions(properties);
+  }
+
+  private void verifyLogInError(int statusCode) throws IOException, InterruptedException {
+    verifyLogIn(statusCode);
+
+    verifyZeroInteractions(httpResponse);
+    verifyZeroInteractions(httpSession);
+  }
+
+  private void verifyLogInNoException(int statusCode) throws IOException, InterruptedException {
+    verifyLogIn(statusCode);
+
+    if (statusCode == OK.getStatusCode()) verify(httpResponse).body();
+    verify(httpResponse).statusCode();
+    verifyNoMoreInteractions(httpResponse);
   }
 
   private void verifySignUp(int statusCode, int times) throws IOException, InterruptedException {
