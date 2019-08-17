@@ -93,7 +93,9 @@ class AccountResourceTest {
                     + JWT.create()
                         .withClaim("email", "admin@teacup.com")
                         .withExpiresAt(Date.from(Instant.now().plus(1L, ChronoUnit.HOURS)))
-                        .sign(Algorithm.HMAC256(Factory.getProperties().getProperty("secret.key")))
+                        .sign(
+                            Algorithm.HMAC256(
+                                Factory.getProperties().getProperty("secret.key", "secret")))
                     + "\"}",
                 httpServletRequest)) {
       assertThat(response.getEntity()).isNull();
