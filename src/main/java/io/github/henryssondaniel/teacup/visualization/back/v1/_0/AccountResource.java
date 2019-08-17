@@ -80,6 +80,7 @@ public class AccountResource {
    */
   @GET
   @Path(AUTHORIZED)
+  @Produces(MediaType.APPLICATION_JSON)
   public static Response authorized(@Context HttpServletRequest httpServletRequest) {
     LOGGER.log(Level.FINE, "Authorized");
 
@@ -94,6 +95,7 @@ public class AccountResource {
    */
   @POST
   @Path(CHANGE_SECRET)
+  @Produces(MediaType.APPLICATION_JSON)
   public Response changePassword(String data, @Context HttpServletRequest httpServletRequest) {
     LOGGER.log(Level.FINE, "Change password");
 
@@ -136,6 +138,7 @@ public class AccountResource {
    */
   @POST
   @Path("logOut")
+  @Produces(MediaType.APPLICATION_JSON)
   public static Response logOut(@Context HttpServletRequest httpServletRequest) {
     LOGGER.log(Level.FINE, "Log in");
 

@@ -21,6 +21,15 @@ class AccountResourceTest {
   private static final String INVALID_TOKEN = "The token is not valid";
   private static final String JSON_EMAIL = '"' + EMAIL + "\": \"" + EMAIL_VALUE + '"';
   private static final String JSON_SECRET = "\"password\": \"password\"";
+  private static final String JSON_SIGN_UP =
+      '{'
+          + String.join(
+              ", ",
+              JSON_EMAIL,
+              "\"firstName\": \"firstName\"",
+              "\"lastName\": \"lastName\"",
+              JSON_SECRET)
+          + '}';
   private static final String SECRET = "secret";
   private static final String SECRET_KEY = "secret.key";
 
@@ -89,6 +98,25 @@ class AccountResourceTest {
   }
 
   @Disabled(
+      "Needs visualization service, database connection and SMTP client. Verifies that the status "
+          + "code is not authorized, since the email address needs to be unique.")
+  @Test
+  void signUp() {
+    try (var response = new AccountResource().signUp(JSON_SIGN_UP, httpServletRequest)) {
+      assertThat(response.getStatus()).isNotEqualTo(Status.UNAUTHORIZED.getStatusCode());
+    }
+  }
+
+  @Test
+  void signUpAuthorized() {
+    httpServletRequest.getSession().setAttribute(ID, ID_VALUE);
+
+    try (var response = new AccountResource().signUp(JSON_SIGN_UP, httpServletRequest)) {
+      assertThat(response.getStatus()).isEqualTo(Status.UNAUTHORIZED.getStatusCode());
+    }
+  }
+
+  @Disabled(
       "Needs visualization service and database connection. Since the account can only be verified"
           + " once, the check that the token is valid instead of checking for an OK.")
   @Test
@@ -112,16 +140,12 @@ class AccountResourceTest {
 
   private void logOut(int statusCode) {
     try (var response = AccountResource.logOut(httpServletRequest)) {
-      assertThat(response.getEntity()).isNull();
-      assertThat(response.getMediaType()).isNull();
       assertThat(response.getStatus()).isEqualTo(statusCode);
     }
   }
 
   private void verifyAuthorized(int statusCode) {
     try (var response = AccountResource.authorized(httpServletRequest)) {
-      assertThat(response.getEntity()).isNull();
-      assertThat(response.getMediaType()).isNull();
       assertThat(response.getStatus()).isEqualTo(statusCode);
     }
   }
@@ -144,8 +168,6 @@ class AccountResourceTest {
                             + '"')
                     + '}',
                 httpServletRequest)) {
-      assertThat(response.getEntity()).isNull();
-      assertThat(response.getMediaType()).isNull();
       assertThat(response.getStatus()).isEqualTo(statusCode);
     }
   }
@@ -154,16 +176,12 @@ class AccountResourceTest {
     try (var response =
         new AccountResource()
             .logIn('{' + String.join(", ", JSON_EMAIL, JSON_SECRET) + '}', httpServletRequest)) {
-      assertThat(response.getEntity()).isNull();
-      assertThat(response.getMediaType()).isNull();
       assertThat(response.getStatus()).isEqualTo(statusCode);
     }
   }
 
   private void verifyRecover(int statusCode) {
     try (var response = new AccountResource().recover('{' + JSON_EMAIL + '}', httpServletRequest)) {
-      assertThat(response.getEntity()).isNull();
-      assertThat(response.getMediaType()).isNull();
       assertThat(response.getStatus()).isEqualTo(statusCode);
     }
   }
