@@ -15,6 +15,7 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Enumeration;
 import java.util.EventListener;
+import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -57,6 +58,7 @@ import javax.servlet.http.WebConnection;
 
 class TestHttpServletRequest implements HttpServletRequest {
   private static final Logger LOGGER = Logger.getLogger(TestHttpServletRequest.class.getName());
+  private final HttpSession httpSession = new TestHttpSession();
 
   @Override
   public boolean authenticate(HttpServletResponse response) {
@@ -367,7 +369,7 @@ class TestHttpServletRequest implements HttpServletRequest {
   @Override
   public HttpSession getSession() {
     LOGGER.log(Level.FINE, "Get session");
-    return new TestHttpSession();
+    return httpSession;
   }
 
   @Override
@@ -655,10 +657,12 @@ class TestHttpServletRequest implements HttpServletRequest {
   }
 
   private static final class TestHttpSession implements HttpSession {
+    private final Map<String, Object> attributes = new HashMap<>(0);
+
     @Override
     public Object getAttribute(String name) {
       LOGGER.log(Level.FINE, "Get attribute");
-      return "";
+      return attributes.get(name);
     }
 
     @Override
@@ -744,6 +748,7 @@ class TestHttpServletRequest implements HttpServletRequest {
     @Override
     public void setAttribute(String name, Object value) {
       LOGGER.log(Level.FINE, "Get attribute");
+      attributes.put(name, value);
     }
 
     @Override
