@@ -39,8 +39,20 @@ class AccountResourceTest {
   @Test
   void changePasswordWhenAuthorized() {
     httpServletRequest.getSession().setAttribute(ID, ID_VALUE);
-
     verifyChangePassword(Status.UNAUTHORIZED.getStatusCode());
+  }
+
+  @Disabled("Needs visualization service and database connection")
+  @Test
+  void logIn() {
+    verifyLogIn(Status.OK.getStatusCode());
+    assertThat(httpServletRequest.getSession().getAttribute(ID)).isNotNull();
+  }
+
+  @Test
+  void logInWhenAuthorized() {
+    httpServletRequest.getSession().setAttribute(ID, ID_VALUE);
+    verifyLogIn(Status.UNAUTHORIZED.getStatusCode());
   }
 
   @Test
@@ -83,6 +95,18 @@ class AccountResourceTest {
                         .withExpiresAt(Date.from(Instant.now().plus(1L, ChronoUnit.HOURS)))
                         .sign(Algorithm.HMAC256(Factory.getProperties().getProperty("secret.key")))
                     + "\"}",
+                httpServletRequest)) {
+      assertThat(response.getEntity()).isNull();
+      assertThat(response.getMediaType()).isNull();
+      assertThat(response.getStatus()).isEqualTo(statusCode);
+    }
+  }
+
+  private void verifyLogIn(int statusCode) {
+    try (var response =
+        new AccountResource()
+            .logIn(
+                "{\"email\": \"admin@teacup.com\", \"password\": \"password\"}",
                 httpServletRequest)) {
       assertThat(response.getEntity()).isNull();
       assertThat(response.getMediaType()).isNull();
