@@ -19,7 +19,8 @@ class AccountResourceTest {
   private static final String ID = "id";
   private static final String ID_VALUE = "123";
   private static final String INVALID_TOKEN = "The token is not valid";
-  private static final String PASSWORD_JSON = "\"password\": \"password\"";
+  private static final String JSON_EMAIL = '"' + EMAIL + "\": \"" + EMAIL_VALUE + '"';
+  private static final String JSON_SECRET = "\"password\": \"password\"";
   private static final String SECRET = "secret";
   private static final String SECRET_KEY = "secret.key";
 
@@ -75,6 +76,18 @@ class AccountResourceTest {
     logOut(Status.UNAUTHORIZED.getStatusCode());
   }
 
+  @Disabled("Needs visualization service, database connection and SMTP client")
+  @Test
+  void recover() {
+    verifyRecover(Status.OK.getStatusCode());
+  }
+
+  @Test
+  void recoverAuthorized() {
+    httpServletRequest.getSession().setAttribute(ID, ID_VALUE);
+    verifyRecover(Status.UNAUTHORIZED.getStatusCode());
+  }
+
   @Disabled(
       "Needs visualization service and database connection. Since the account can only be verified"
           + " once, the check that the token is valid instead of checking for an OK.")
@@ -119,7 +132,7 @@ class AccountResourceTest {
                 '{'
                     + String.join(
                         ", ",
-                        PASSWORD_JSON,
+                        JSON_SECRET,
                         "\"token\": \""
                             + JWT.create()
                                 .withClaim(EMAIL, EMAIL_VALUE)
@@ -139,9 +152,15 @@ class AccountResourceTest {
   private void verifyLogIn(int statusCode) {
     try (var response =
         new AccountResource()
-            .logIn(
-                '{' + String.join(", ", "\"email\": \"admin@teacup.com\"", PASSWORD_JSON) + '}',
-                httpServletRequest)) {
+            .logIn('{' + String.join(", ", JSON_EMAIL, JSON_SECRET) + '}', httpServletRequest)) {
+      assertThat(response.getEntity()).isNull();
+      assertThat(response.getMediaType()).isNull();
+      assertThat(response.getStatus()).isEqualTo(statusCode);
+    }
+  }
+
+  private void verifyRecover(int statusCode) {
+    try (var response = new AccountResource().recover('{' + JSON_EMAIL + '}', httpServletRequest)) {
       assertThat(response.getEntity()).isNull();
       assertThat(response.getMediaType()).isNull();
       assertThat(response.getStatus()).isEqualTo(statusCode);
