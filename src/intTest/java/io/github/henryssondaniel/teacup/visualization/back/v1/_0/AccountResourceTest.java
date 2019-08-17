@@ -14,8 +14,14 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 class AccountResourceTest {
+  private static final String EMAIL = "email";
+  private static final String EMAIL_VALUE = "admin@teacup.com";
   private static final String ID = "id";
   private static final String ID_VALUE = "123";
+  private static final String INVALID_TOKEN = "The token is not valid";
+  private static final String PASSWORD_JSON = "\"password\": \"password\"";
+  private static final String SECRET = "secret";
+  private static final String SECRET_KEY = "secret.key";
 
   private final HttpServletRequest httpServletRequest = new TestHttpServletRequest();
 
@@ -69,6 +75,27 @@ class AccountResourceTest {
     logOut(Status.UNAUTHORIZED.getStatusCode());
   }
 
+  @Disabled(
+      "Needs visualization service and database connection. Since the account can only be verified"
+          + " once, the check that the token is valid instead of checking for an OK.")
+  @Test
+  void verify() {
+    assertThat(
+            new AccountResource()
+                .verify(
+                    JWT.create()
+                        .withClaim(EMAIL, EMAIL_VALUE)
+                        .sign(
+                            Algorithm.HMAC256(
+                                Factory.getProperties().getProperty(SECRET_KEY, SECRET)))))
+        .isNotEqualTo(INVALID_TOKEN);
+  }
+
+  @Test
+  void verifyWhenNotValid() {
+    assertThat(new AccountResource().verify(ID_VALUE)).isEqualTo(INVALID_TOKEN);
+  }
+
   private void logOut(int statusCode) {
     try (var response = AccountResource.logOut(httpServletRequest)) {
       assertThat(response.getEntity()).isNull();
@@ -89,14 +116,19 @@ class AccountResourceTest {
     try (var response =
         new AccountResource()
             .changePassword(
-                "{\"password\": \"password\", \"token\": \""
-                    + JWT.create()
-                        .withClaim("email", "admin@teacup.com")
-                        .withExpiresAt(Date.from(Instant.now().plus(1L, ChronoUnit.HOURS)))
-                        .sign(
-                            Algorithm.HMAC256(
-                                Factory.getProperties().getProperty("secret.key", "secret")))
-                    + "\"}",
+                '{'
+                    + String.join(
+                        ", ",
+                        PASSWORD_JSON,
+                        "\"token\": \""
+                            + JWT.create()
+                                .withClaim(EMAIL, EMAIL_VALUE)
+                                .withExpiresAt(Date.from(Instant.now().plus(1L, ChronoUnit.HOURS)))
+                                .sign(
+                                    Algorithm.HMAC256(
+                                        Factory.getProperties().getProperty(SECRET_KEY, SECRET)))
+                            + '"')
+                    + '}',
                 httpServletRequest)) {
       assertThat(response.getEntity()).isNull();
       assertThat(response.getMediaType()).isNull();
@@ -108,7 +140,7 @@ class AccountResourceTest {
     try (var response =
         new AccountResource()
             .logIn(
-                "{\"email\": \"admin@teacup.com\", \"password\": \"password\"}",
+                '{' + String.join(", ", "\"email\": \"admin@teacup.com\"", PASSWORD_JSON) + '}',
                 httpServletRequest)) {
       assertThat(response.getEntity()).isNull();
       assertThat(response.getMediaType()).isNull();
