@@ -104,6 +104,7 @@ class AccountResourceTest {
         .isNotEqualTo(INVALID_TOKEN);
   }
 
+  @Disabled("Requires a Teacup configuration file in the home folder")
   @Test
   void verifyWhenNotValid() {
     assertThat(new AccountResource().verify(ID_VALUE)).isEqualTo(INVALID_TOKEN);
