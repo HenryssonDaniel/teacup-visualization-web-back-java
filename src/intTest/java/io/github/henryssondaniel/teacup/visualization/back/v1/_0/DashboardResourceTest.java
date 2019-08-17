@@ -9,10 +9,10 @@ import javax.ws.rs.core.Response.Status;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
-@Disabled("Needs report service and database connection")
 class DashboardResourceTest {
   private final HttpServletRequest httpServletRequest = new TestHttpServletRequest();
 
+  @Disabled("Needs report service and database connection")
   @Test
   void dashboard() {
     var httpSession = httpServletRequest.getSession();
