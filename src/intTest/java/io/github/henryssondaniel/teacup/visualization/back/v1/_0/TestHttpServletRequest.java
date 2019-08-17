@@ -722,6 +722,7 @@ class TestHttpServletRequest implements HttpServletRequest {
     @Override
     public void invalidate() {
       LOGGER.log(Level.FINE, "Invalidate");
+      attributes.clear();
     }
 
     @Override
