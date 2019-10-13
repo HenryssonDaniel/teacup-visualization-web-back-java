@@ -7,7 +7,7 @@ plugins {
 }
 
 group = 'io.github.henryssondaniel.teacup.visualization'
-version = '1.0.1-SNAPSHOT'
+version = '1.0.1'
 
 sourceSets {
     intTest {
@@ -61,7 +61,7 @@ dependencies {
     compile 'javax.ws.rs:javax.ws.rs-api:2.1.1'
     compile 'org.json:json:20180813'
     implementation 'com.auth0:java-jwt:3.8.1'
-    implementation 'io.github.henryssondaniel.teacup:core:1.1.5-SNAPSHOT'
+    implementation 'io.github.henryssondaniel.teacup:core:1.1.4'
     providedCompile 'javax.servlet:javax.servlet-api:4.0.1'
     testCompile 'org.glassfish.jersey.core:jersey-common:2.29'
     testImplementation 'org.assertj:assertj-core:3.12.2'
