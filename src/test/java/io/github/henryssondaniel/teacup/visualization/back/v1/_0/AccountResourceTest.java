@@ -8,8 +8,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
 import com.auth0.jwt.algorithms.Algorithm;
@@ -117,7 +117,7 @@ class AccountResourceTest {
 
     logIn(UNAUTHORIZED);
 
-    verifyZeroInteractions(account);
+    verifyNoInteractions(account);
     verifyHttp();
   }
 
@@ -146,7 +146,7 @@ class AccountResourceTest {
     verify(account).recover(algorithm, EMAIL);
     verifyNoMoreInteractions(account);
 
-    verifyZeroInteractions(algorithm);
+    verifyNoInteractions(algorithm);
     verifyHttp();
   }
 
@@ -156,8 +156,8 @@ class AccountResourceTest {
 
     recover(UNAUTHORIZED);
 
-    verifyZeroInteractions(account);
-    verifyZeroInteractions(algorithm);
+    verifyNoInteractions(account);
+    verifyNoInteractions(algorithm);
     verifyHttp();
   }
 
@@ -171,7 +171,7 @@ class AccountResourceTest {
     verify(account).signUp(same(algorithm), same(httpServletRequest), any(JSONObject.class));
     verifyNoMoreInteractions(account);
 
-    verifyZeroInteractions(algorithm);
+    verifyNoInteractions(algorithm);
     verifyHttp();
   }
 
@@ -181,8 +181,8 @@ class AccountResourceTest {
 
     signUp(UNAUTHORIZED);
 
-    verifyZeroInteractions(account);
-    verifyZeroInteractions(algorithm);
+    verifyNoInteractions(account);
+    verifyNoInteractions(algorithm);
     verifyHttp();
   }
 
@@ -203,7 +203,7 @@ class AccountResourceTest {
     verify(account).verify(EMAIL);
     verifyNoMoreInteractions(account);
 
-    verifyZeroInteractions(algorithm);
+    verifyNoInteractions(algorithm);
 
     verify(claim).asString();
     verifyNoMoreInteractions(claim);
@@ -221,8 +221,8 @@ class AccountResourceTest {
 
     verifyVerify("The token is not valid");
 
-    verifyZeroInteractions(account);
-    verifyZeroInteractions(algorithm);
+    verifyNoInteractions(account);
+    verifyNoInteractions(algorithm);
 
     verify(jwtVerifier).verify(TOKEN);
     verifyNoMoreInteractions(jwtVerifier);

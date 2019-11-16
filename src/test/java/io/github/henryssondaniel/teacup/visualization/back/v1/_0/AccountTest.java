@@ -12,8 +12,8 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
 import com.auth0.jwt.algorithms.Algorithm;
@@ -117,12 +117,12 @@ class AccountTest {
 
     verifyChangePassword(FORBIDDEN);
 
-    verifyZeroInteractions(claim);
-    verifyZeroInteractions(decodedJWT);
-    verifyZeroInteractions(httpClient);
-    verifyZeroInteractions(httpResponse);
-    verifyZeroInteractions(httpSession);
-    verifyZeroInteractions(properties);
+    verifyNoInteractions(claim);
+    verifyNoInteractions(decodedJWT);
+    verifyNoInteractions(httpClient);
+    verifyNoInteractions(httpResponse);
+    verifyNoInteractions(httpSession);
+    verifyNoInteractions(properties);
   }
 
   @Test
@@ -152,7 +152,7 @@ class AccountTest {
     when(httpResponse.statusCode()).thenReturn(OK.getStatusCode(), NO_CONTENT.getStatusCode());
 
     verifyChangePasswordLogIn(NO_CONTENT);
-    verifyZeroInteractions(httpSession);
+    verifyNoInteractions(httpSession);
   }
 
   @Test
@@ -194,7 +194,7 @@ class AccountTest {
     when(httpResponse.statusCode()).thenReturn(NO_CONTENT.getStatusCode());
 
     verifyLogInNoException(NO_CONTENT.getStatusCode());
-    verifyZeroInteractions(httpSession);
+    verifyNoInteractions(httpSession);
   }
 
   @Test
@@ -294,7 +294,7 @@ class AccountTest {
     when(httpResponse.statusCode()).thenReturn(OK.getStatusCode(), NO_CONTENT.getStatusCode());
 
     verifySignUpLogIn(NO_CONTENT.getStatusCode(), 2);
-    verifyZeroInteractions(httpSession);
+    verifyNoInteractions(httpSession);
   }
 
   @Test
@@ -382,18 +382,18 @@ class AccountTest {
 
   private void verifyChangePasswordLogInError() throws IOException, InterruptedException {
     verifyChangePasswordValid(INTERNAL_SERVER_ERROR, 2);
-    verifyZeroInteractions(httpSession);
+    verifyNoInteractions(httpSession);
   }
 
   private void verifyChangePasswordNoLogIn(StatusType statusType)
       throws IOException, InterruptedException {
     verifyChangePasswordValid(statusType, 1);
-    verifyZeroInteractions(httpSession);
+    verifyNoInteractions(httpSession);
   }
 
   private void verifyChangePasswordNoLogInError() throws IOException, InterruptedException {
     verifyChangePasswordNoLogIn(INTERNAL_SERVER_ERROR);
-    verifyZeroInteractions(httpResponse);
+    verifyNoInteractions(httpResponse);
   }
 
   private void verifyChangePasswordValid(StatusType statusType, int times)
@@ -448,8 +448,8 @@ class AccountTest {
   private void verifyLogInError(int statusCode) throws IOException, InterruptedException {
     verifyLogIn(statusCode);
 
-    verifyZeroInteractions(httpResponse);
-    verifyZeroInteractions(httpSession);
+    verifyNoInteractions(httpResponse);
+    verifyNoInteractions(httpSession);
   }
 
   private void verifyLogInNoException(int statusCode) throws IOException, InterruptedException {
@@ -464,7 +464,7 @@ class AccountTest {
     verify(httpClient).send(any(HttpRequest.class), eq(BODY_HANDLER));
     verifyNoMoreInteractions(httpClient);
 
-    verifyZeroInteractions(httpSession);
+    verifyNoInteractions(httpSession);
 
     verifyEmailProperties(statusCode == OK.getStatusCode(), 1);
   }
@@ -472,13 +472,13 @@ class AccountTest {
   private void verifyRecoverError(int statusCode) throws IOException, InterruptedException {
     verifyRecover(statusCode);
 
-    verifyZeroInteractions(algorithm);
-    verifyZeroInteractions(emailClient);
+    verifyNoInteractions(algorithm);
+    verifyNoInteractions(emailClient);
   }
 
   private void verifyRecoverException() throws IOException, InterruptedException {
     verifyRecoverError(INTERNAL_SERVER_ERROR.getStatusCode());
-    verifyZeroInteractions(httpResponse);
+    verifyNoInteractions(httpResponse);
   }
 
   private void verifyRecoverNoException()
@@ -538,21 +538,21 @@ class AccountTest {
   private void verifySignUpLogInError()
       throws MessagingException, IOException, InterruptedException {
     verifySignUpLogIn(INTERNAL_SERVER_ERROR.getStatusCode(), 1);
-    verifyZeroInteractions(httpSession);
+    verifyNoInteractions(httpSession);
   }
 
   private void verifySignUpNoLogIn(int statusCode) throws IOException, InterruptedException {
     verifySignUp(statusCode, 1);
 
-    verifyZeroInteractions(algorithm);
-    verifyZeroInteractions(emailClient);
-    verifyZeroInteractions(httpServletRequest);
-    verifyZeroInteractions(httpSession);
+    verifyNoInteractions(algorithm);
+    verifyNoInteractions(emailClient);
+    verifyNoInteractions(httpServletRequest);
+    verifyNoInteractions(httpSession);
   }
 
   private void verifySignUpNoLogInError() throws IOException, InterruptedException {
     verifySignUpNoLogIn(INTERNAL_SERVER_ERROR.getStatusCode());
-    verifyZeroInteractions(httpResponse);
+    verifyNoInteractions(httpResponse);
   }
 
   private void verifyVerify(String message) throws IOException, InterruptedException {
@@ -567,7 +567,7 @@ class AccountTest {
 
   private void verifyVerifyException() throws IOException, InterruptedException {
     verifyVerify(ERROR_VERIFY);
-    verifyZeroInteractions(httpResponse);
+    verifyNoInteractions(httpResponse);
   }
 
   private void verifyVerifyNoException(String message) throws IOException, InterruptedException {
