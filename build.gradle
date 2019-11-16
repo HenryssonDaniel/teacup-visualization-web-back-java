@@ -43,6 +43,10 @@ task sourcesJar(type: Jar) {
 check.dependsOn integrationTest
 jacocoTestReport.dependsOn integrationTestReport
 
+tasks.withType(GenerateModuleMetadata) {
+    enabled = false
+}
+
 tasks.withType(Test) {
     useJUnitPlatform()
 
@@ -57,14 +61,14 @@ configurations {
 }
 
 dependencies {
-    compile 'com.sun.mail:jakarta.mail:1.6.4'
-    compile 'javax.ws.rs:javax.ws.rs-api:2.1.1'
-    compile 'org.json:json:20190722'
     implementation 'com.auth0:java-jwt:3.8.3'
+    implementation 'com.sun.mail:jakarta.mail:1.6.4'
     implementation 'io.github.henryssondaniel.teacup:core:1.1.5-SNAPSHOT'
+    implementation 'javax.ws.rs:javax.ws.rs-api:2.1.1'
+    implementation 'org.json:json:20190722'
     providedCompile 'javax.servlet:javax.servlet-api:4.0.1'
-    testCompile 'org.glassfish.jersey.core:jersey-common:2.29.1'
     testImplementation 'org.assertj:assertj-core:3.14.0'
+    testImplementation 'org.glassfish.jersey.core:jersey-common:2.29.1'
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.6.0-M1'
     testImplementation 'org.mockito:mockito-core:3.1.0'
 }
