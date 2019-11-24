@@ -1,7 +1,7 @@
 # [User Guide](https://henryssondaniel.github.io/teacup.github.io/)
 [![Build Status](https://travis-ci.com/HenryssonDaniel/teacup-visualization-web-back-java.svg?branch=master)](https://travis-ci.com/HenryssonDaniel/teacup-visualization-web-back-java)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=HenryssonDaniel_teacup-visualization-web-back-java&metric=coverage)](https://sonarcloud.io/dashboard?id=HenryssonDaniel_teacup-visualization-web-back-java)
-[![latest release](https://img.shields.io/badge/release%20notes-1.0.0-yellow.svg)](https://github.com/HenryssonDaniel/teacup-visualization-web-back-java/blob/master/doc/release-notes/official.md)
+[![latest release](https://img.shields.io/badge/release%20notes-1.0.2-yellow.svg)](https://github.com/HenryssonDaniel/teacup-visualization-web-back-java/blob/master/doc/release-notes/official.md)
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.henryssondaniel.teacup.visualization/web.svg)](http://search.maven.org/#search%7Cgav%7C1%7Cg%3A%22io.github.henryssondaniel.teacup.visualization%22%20AND%20a%3A%22web%22)
 [![Javadocs](https://www.javadoc.io/badge/io.github.henryssondaniel.teacup.visualization/web.svg)](https://www.javadoc.io/doc/io.github.henryssondaniel.teacup.visualization/web)
 ## What ##
