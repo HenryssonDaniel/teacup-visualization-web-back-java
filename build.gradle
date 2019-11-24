@@ -7,7 +7,7 @@ plugins {
 }
 
 group = 'io.github.henryssondaniel.teacup.visualization'
-version = '1.0.2-SNAPSHOT'
+version = '1.0.2'
 
 sourceSets {
     intTest {
@@ -63,7 +63,7 @@ configurations {
 dependencies {
     implementation 'com.auth0:java-jwt:3.8.3'
     implementation 'com.sun.mail:jakarta.mail:1.6.4'
-    implementation 'io.github.henryssondaniel.teacup:core:1.2.1-SNAPSHOT'
+    implementation 'io.github.henryssondaniel.teacup:core:1.2.0'
     implementation 'javax.ws.rs:javax.ws.rs-api:2.1.1'
     implementation 'org.json:json:20190722'
     providedCompile 'javax.servlet:javax.servlet-api:4.0.1'
